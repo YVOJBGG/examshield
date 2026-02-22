@@ -1,10 +1,8 @@
-from passlib.context import CryptContext
 from sqlalchemy import select
 
+from app.core.security import hash_password
 from app.db.session import SessionLocal
 from app.models import Exam, Question, User
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 USERS = [
@@ -33,7 +31,7 @@ def seed_users(session) -> None:
         session.add(
             User(
                 username=u["username"],
-                password_hash=pwd_context.hash(u["password"]),
+                password_hash=hash_password(u["password"]),
                 role=u["role"],
             )
         )

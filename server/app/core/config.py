@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "info"
 
     DATABASE_URL: str = "postgresql+psycopg://examshield:examshield@localhost:5432/examshield"
+    DATABASE_URL_TEST: str | None = None
     JWT_SECRET_KEY: str = "change-me-in-dev"
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRES_MINUTES: int = 60
