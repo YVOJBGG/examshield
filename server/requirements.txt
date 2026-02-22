@@ -6,3 +6,8 @@ pytest
 httpx
 ruff
 black
+sqlalchemy
+psycopg[binary]
+alembic
+passlib[bcrypt]
+python-jose[cryptography]

@@ -3,6 +3,7 @@
 ## Prerequisites
 
 - Python 3.11+
+- Docker
 
 ## Setup
 
@@ -29,7 +30,31 @@ Create local environment file from template:
 Copy-Item .env.example .env
 ```
 
-## Run
+## Start PostgreSQL
+
+From `server/`:
+
+```bash
+docker compose up -d
+```
+
+## Run Migrations
+
+From `server/`:
+
+```bash
+alembic upgrade head
+```
+
+## Seed Dev Data
+
+From `server/`:
+
+```bash
+python -m app.scripts.seed
+```
+
+## Run API
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
