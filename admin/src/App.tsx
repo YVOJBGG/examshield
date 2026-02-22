@@ -1,45 +1,105 @@
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 
-import { getHealth } from "./lib/api";
+import { adminPing, clearToken, getMe, getToken, login, setToken, type MeResponse } from "./lib/api";
 
 function App() {
-  const [loading, setLoading] = useState(true);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<unknown>(null);
+  const [me, setMe] = useState<MeResponse | null>(null);
+  const [pingResult, setPingResult] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    async function loadMeIfTokenExists() {
+      const token = getToken();
+      if (!token) {
+        return;
+      }
 
-    async function loadHealth() {
       try {
-        const result = await getHealth();
-        if (!cancelled) {
-          setData(result);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Backend not reachable");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        const currentUser = await getMe();
+        setMe(currentUser);
+      } catch {
+        clearToken();
       }
     }
-
-    void loadHealth();
-
-    return () => {
-      cancelled = true;
-    };
+    void loadMeIfTokenExists();
   }, []);
+
+  async function onLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setPingResult(null);
+    setSubmitting(true);
+
+    try {
+      const response = await login(username, password);
+      setToken(response.access_token);
+      const currentUser = await getMe();
+      setMe(currentUser);
+      setPassword("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function onAdminPing() {
+    setPingResult(null);
+    setError(null);
+
+    try {
+      const result = await adminPing();
+      setPingResult(JSON.stringify(result));
+    } catch (err) {
+      setPingResult(`Error: ${err instanceof Error ? err.message : "Request failed"}`);
+    }
+  }
 
   return (
     <main>
       <h1>ExamShield Admin</h1>
-      {loading && <p>Loading health check...</p>}
-      {!loading && error && <p className="error">Error: {error}</p>}
-      {!loading && !error && <pre>{JSON.stringify(data, null, 2)}</pre>}
+      <form className="login-form" onSubmit={onLogin}>
+        <label htmlFor="username">Username</label>
+        <input
+          id="username"
+          value={username}
+          onChange={(event) => setUsername(event.target.value)}
+          placeholder="admin"
+          required
+        />
+
+        <label htmlFor="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          placeholder="••••••••"
+          required
+        />
+
+        <button type="submit" disabled={submitting}>
+          {submitting ? "Logging in..." : "Login"}
+        </button>
+      </form>
+
+      {error && <p className="error">Error: {error}</p>}
+
+      {me && (
+        <section className="panel">
+          <p>
+            Logged in as <strong>{me.username}</strong> ({me.role})
+          </p>
+          <button type="button" onClick={onAdminPing}>
+            Admin Ping
+          </button>
+          {pingResult && <pre>{pingResult}</pre>}
+        </section>
+      )}
     </main>
   );
 }
