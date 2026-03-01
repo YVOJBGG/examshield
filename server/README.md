@@ -66,6 +66,12 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 pytest
 ```
 
+Milestone 2 exam-management tests:
+
+```bash
+pytest tests/test_exams_crud.py tests/test_questions_crud.py
+```
+
 ## Lint and Format
 
 ```bash
