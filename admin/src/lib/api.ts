@@ -1,6 +1,15 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 const TOKEN_KEY = "access_token";
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
 export type LoginResponse = {
   access_token: string;
   token_type: string;
@@ -11,6 +20,33 @@ export type MeResponse = {
   username: string;
   role: string;
 };
+
+export type Exam = {
+  id: string;
+  title: string;
+  time_limit_minutes: number;
+  created_at: string;
+};
+
+export type ExamCreate = {
+  title: string;
+  time_limit_minutes: number;
+};
+
+export type ExamUpdate = Partial<ExamCreate>;
+
+export type Question = {
+  id: string;
+  exam_id: string;
+  text: string;
+  created_at: string;
+};
+
+export type QuestionCreate = {
+  text: string;
+};
+
+export type QuestionUpdate = Partial<QuestionCreate>;
 
 export function setToken(token: string): void {
   localStorage.setItem(TOKEN_KEY, token);
@@ -35,6 +71,24 @@ export async function authFetch(input: string, init: RequestInit = {}): Promise<
   return fetch(`${API_BASE_URL}${input}`, { ...init, headers });
 }
 
+async function parseJson<T>(response: Response): Promise<T> {
+  return response.json() as Promise<T>;
+}
+
+async function readErrorMessage(response: Response, fallback: string): Promise<string> {
+  const body = await response.json().catch(() => null);
+  if (body && typeof body === "object" && "detail" in body && typeof body.detail === "string") {
+    return body.detail;
+  }
+  return fallback;
+}
+
+function ensurePositiveMinutes(minutes: number): void {
+  if (minutes <= 0) {
+    throw new ApiError(400, "Time limit must be greater than 0.");
+  }
+}
+
 export async function login(username: string, password: string): Promise<LoginResponse> {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: "POST",
@@ -43,30 +97,129 @@ export async function login(username: string, password: string): Promise<LoginRe
   });
 
   if (!response.ok) {
-    throw new Error("Login failed");
+    throw new ApiError(response.status, await readErrorMessage(response, "Login failed"));
   }
 
-  return response.json() as Promise<LoginResponse>;
+  return parseJson<LoginResponse>(response);
 }
 
 export async function getMe(): Promise<MeResponse> {
   const response = await authFetch("/auth/me");
 
   if (!response.ok) {
-    throw new Error("Could not load current user");
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not load current user"));
   }
 
-  return response.json() as Promise<MeResponse>;
+  return parseJson<MeResponse>(response);
 }
 
 export async function adminPing(): Promise<unknown> {
   const response = await authFetch("/admin/ping");
-  const body = await response.json().catch(() => ({}));
-
   if (!response.ok) {
-    const detail = typeof body === "object" && body && "detail" in body ? String(body.detail) : "Admin ping failed";
-    throw new Error(detail);
+    throw new ApiError(response.status, await readErrorMessage(response, "Admin ping failed"));
   }
 
-  return body;
+  return parseJson<unknown>(response);
+}
+
+export async function listExams(): Promise<Exam[]> {
+  const response = await authFetch("/exams");
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not load exams"));
+  }
+  return parseJson<Exam[]>(response);
+}
+
+export async function createExam(payload: ExamCreate): Promise<Exam> {
+  ensurePositiveMinutes(payload.time_limit_minutes);
+  const response = await authFetch("/exams", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not create exam"));
+  }
+  return parseJson<Exam>(response);
+}
+
+export async function getExam(examId: string): Promise<Exam> {
+  const response = await authFetch(`/exams/${examId}`);
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not load exam"));
+  }
+  return parseJson<Exam>(response);
+}
+
+export async function updateExam(examId: string, payload: ExamUpdate): Promise<Exam> {
+  if (payload.time_limit_minutes !== undefined) {
+    ensurePositiveMinutes(payload.time_limit_minutes);
+  }
+  const response = await authFetch(`/exams/${examId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not update exam"));
+  }
+  return parseJson<Exam>(response);
+}
+
+export async function deleteExam(examId: string): Promise<void> {
+  const response = await authFetch(`/exams/${examId}`, { method: "DELETE" });
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not delete exam"));
+  }
+}
+
+export async function listQuestions(examId: string): Promise<Question[]> {
+  const response = await authFetch(`/exams/${examId}/questions`);
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not load questions"));
+  }
+  return parseJson<Question[]>(response);
+}
+
+export async function createQuestion(examId: string, payload: QuestionCreate): Promise<Question> {
+  const response = await authFetch(`/exams/${examId}/questions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not create question"));
+  }
+  return parseJson<Question>(response);
+}
+
+export async function getQuestion(examId: string, questionId: string): Promise<Question> {
+  const response = await authFetch(`/exams/${examId}/questions/${questionId}`);
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not load question"));
+  }
+  return parseJson<Question>(response);
+}
+
+export async function updateQuestion(
+  examId: string,
+  questionId: string,
+  payload: QuestionUpdate,
+): Promise<Question> {
+  const response = await authFetch(`/exams/${examId}/questions/${questionId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not update question"));
+  }
+  return parseJson<Question>(response);
+}
+
+export async function deleteQuestion(examId: string, questionId: string): Promise<void> {
+  const response = await authFetch(`/exams/${examId}/questions/${questionId}`, { method: "DELETE" });
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not delete question"));
+  }
 }
