@@ -33,7 +33,7 @@ class ExamWindow(QWidget):
 
         self.title_label = QLabel(f"Exam: {exam.title}")
         self.time_limit_label = QLabel(f"Time limit: {exam.time_limit_minutes} minutes")
-        self.status_label = QLabel("Attempt started. Autosave is enabled.")
+        self.status_label = QLabel("Attempt started.")
 
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)
@@ -42,6 +42,7 @@ class ExamWindow(QWidget):
             question_label.setWordWrap(True)
             answer_input = QTextEdit()
             answer_input.setPlaceholderText("Type your answer here...")
+            answer_input.setPlainText(self.quiz_manager.get_answer(question.id))
             answer_input.textChanged.connect(
                 self._build_text_changed_handler(question.id, answer_input)
             )
@@ -75,9 +76,16 @@ class ExamWindow(QWidget):
         self.autosave_timer.timeout.connect(self._autosave_tick)
         self.autosave_timer.start()
 
+        if self.quiz_manager.has_dirty_cache():
+            self.status_label.setText("Saved locally")
+            QTimer.singleShot(800, lambda: self._autosave(in_background=True))
+        else:
+            self.status_label.setText("Synced to server")
+
     def _build_text_changed_handler(self, question_id: str, answer_input: QTextEdit):
         def handler() -> None:
             self.quiz_manager.set_answer(question_id, answer_input.toPlainText())
+            self.status_label.setText("Saved locally")
 
         return handler
 
@@ -94,14 +102,13 @@ class ExamWindow(QWidget):
     def _autosave(self, in_background: bool) -> None:
         try:
             self.quiz_manager.autosave()
-            if not in_background:
-                self.status_label.setText("Autosave successful.")
+            self.status_label.setText("Synced to server")
         except ApiClientError as exc:
-            self.status_label.setText(f"Autosave failed: {exc}")
+            self.status_label.setText("Autosave failed, changes kept locally")
             if not in_background:
                 QMessageBox.warning(self, "Autosave failed", str(exc))
         except Exception as exc:
-            self.status_label.setText(f"Autosave error: {exc}")
+            self.status_label.setText("Autosave failed, changes kept locally")
             if not in_background:
                 QMessageBox.warning(self, "Autosave error", str(exc))
 
