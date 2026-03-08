@@ -108,7 +108,11 @@ Duplicate active attempt behavior for `POST /attempts/start`:
 - Response includes only student-safe exam data:
   - `id`, `title`, `time_limit_minutes`, `questions[{id,text}]`
 
-3. `POST /answers/autosave`
+3. `GET /student/exams`
+- Response includes only student-safe exam list items:
+  - `id`, `title`, `time_limit_minutes`
+
+4. `POST /answers/autosave`
 - Request:
 ```json
 {
@@ -118,7 +122,7 @@ Duplicate active attempt behavior for `POST /attempts/start`:
 ```
 - Upserts answers by `(attempt_id, question_id)` and is idempotent for repeated saves.
 
-4. `POST /answers/submit`
+5. `POST /answers/submit`
 - Request is the same shape as autosave.
 - Upserts final answers, sets attempt status to `submitted`, sets `submitted_at`, and returns:
 ```json
@@ -163,7 +167,14 @@ curl -s http://127.0.0.1:8000/student/exams/<exam_uuid> \
   -H "Authorization: Bearer <student_token>"
 ```
 
-4. Autosave one answer:
+4. List available exams:
+
+```bash
+curl -s http://127.0.0.1:8000/student/exams \
+  -H "Authorization: Bearer <student_token>"
+```
+
+5. Autosave one answer:
 
 ```bash
 curl -s -X POST http://127.0.0.1:8000/answers/autosave \
@@ -172,7 +183,7 @@ curl -s -X POST http://127.0.0.1:8000/answers/autosave \
   -d '{"attempt_id":"<attempt_uuid>","answers":[{"question_id":"<question_uuid>","answer_text":"My draft answer"}]}'
 ```
 
-5. Submit answers:
+6. Submit answers:
 
 ```bash
 curl -s -X POST http://127.0.0.1:8000/answers/submit \

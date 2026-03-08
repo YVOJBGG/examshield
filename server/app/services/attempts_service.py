@@ -7,6 +7,10 @@ from sqlalchemy.orm import Session
 from app.models import Attempt, Exam, Question
 
 
+def list_student_exams(db: Session) -> list[Exam]:
+    return list(db.scalars(select(Exam).order_by(Exam.created_at.desc())).all())
+
+
 def get_exam_for_student(db: Session, exam_id: uuid.UUID) -> Exam:
     exam = db.scalar(select(Exam).where(Exam.id == exam_id))
     if exam is None:
