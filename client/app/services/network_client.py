@@ -105,3 +105,22 @@ class NetworkClient:
             "/answers/submit",
             {"attempt_id": attempt_id, "answers": answers},
         )
+
+    def send_monitoring_status(
+        self,
+        *,
+        event_type: str,
+        exam_id: str,
+        attempt_id: str,
+        status: str,
+        message: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "event_type": event_type,
+            "exam_id": exam_id,
+            "attempt_id": attempt_id,
+            "status": status,
+        }
+        if message:
+            payload["message"] = message
+        return self._request("POST", "/monitoring/status", payload)

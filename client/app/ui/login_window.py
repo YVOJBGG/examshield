@@ -13,16 +13,23 @@ from PyQt6.QtWidgets import (
 
 from app.config import AUTOSAVE_INTERVAL_MS
 from app.services.auth_manager import AuthManager
+from app.services.monitoring_client import MonitoringClient
 from app.services.network_client import ApiClientError
 from app.services.quiz_manager import QuizManager
 from app.ui.exam_window import ExamWindow
 
 
 class LoginWindow(QWidget):
-    def __init__(self, auth_manager: AuthManager, quiz_manager: QuizManager) -> None:
+    def __init__(
+        self,
+        auth_manager: AuthManager,
+        quiz_manager: QuizManager,
+        monitoring_client: MonitoringClient,
+    ) -> None:
         super().__init__()
         self.auth_manager = auth_manager
         self.quiz_manager = quiz_manager
+        self.monitoring_client = monitoring_client
         self.exam_window: ExamWindow | None = None
 
         self.setWindowTitle("ExamShield Student Login")
@@ -69,12 +76,16 @@ class LoginWindow(QWidget):
 
         self.login_button.setEnabled(False)
         self.status_label.setText("Logging in and loading exam...")
+        self.monitoring_client.clear_session()
         try:
             self.auth_manager.login(username, password)
             exam = self.quiz_manager.load_exam(exam_id)
             attempt_id = self.quiz_manager.start_attempt()
+            self.monitoring_client.set_session(exam_id=exam.id, attempt_id=attempt_id)
+            self.monitoring_client.send_connected(message="Student connected to exam session")
             self.exam_window = ExamWindow(
                 quiz_manager=self.quiz_manager,
+                monitoring_client=self.monitoring_client,
                 autosave_interval_ms=AUTOSAVE_INTERVAL_MS,
             )
             self.exam_window.show()

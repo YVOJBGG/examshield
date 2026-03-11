@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import QTimer
+from PyQt6.QtGui import QCloseEvent
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -12,14 +13,22 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from app.config import MONITORING_HEARTBEAT_INTERVAL_MS
+from app.services.monitoring_client import MonitoringClient
 from app.services.network_client import ApiClientError
 from app.services.quiz_manager import QuizManager
 
 
 class ExamWindow(QWidget):
-    def __init__(self, quiz_manager: QuizManager, autosave_interval_ms: int = 25000) -> None:
+    def __init__(
+        self,
+        quiz_manager: QuizManager,
+        monitoring_client: MonitoringClient,
+        autosave_interval_ms: int = 25000,
+    ) -> None:
         super().__init__()
         self.quiz_manager = quiz_manager
+        self.monitoring_client = monitoring_client
         self.autosave_interval_ms = autosave_interval_ms
         self._question_inputs: dict[str, QTextEdit] = {}
         self._submitted = False
@@ -34,6 +43,7 @@ class ExamWindow(QWidget):
         self.title_label = QLabel(f"Exam: {exam.title}")
         self.time_limit_label = QLabel(f"Time limit: {exam.time_limit_minutes} minutes")
         self.status_label = QLabel("Attempt started.")
+        self.monitoring_status_label = QLabel("Live monitoring unavailable")
 
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)
@@ -69,12 +79,22 @@ class ExamWindow(QWidget):
         layout.addWidget(scroll_area)
         layout.addLayout(button_row)
         layout.addWidget(self.status_label)
+        layout.addWidget(self.monitoring_status_label)
         self.setLayout(layout)
 
         self.autosave_timer = QTimer(self)
         self.autosave_timer.setInterval(self.autosave_interval_ms)
         self.autosave_timer.timeout.connect(self._autosave_tick)
         self.autosave_timer.start()
+
+        self.monitoring_timer = QTimer(self)
+        self.monitoring_timer.setInterval(MONITORING_HEARTBEAT_INTERVAL_MS)
+        self.monitoring_timer.timeout.connect(self._send_heartbeat)
+        self.monitoring_timer.start()
+
+        self._set_monitoring_status(
+            self.monitoring_client.send_in_exam(message="Student entered exam window")
+        )
 
         if self.quiz_manager.has_dirty_cache():
             self.status_label.setText("Saved locally")
@@ -103,6 +123,9 @@ class ExamWindow(QWidget):
         try:
             self.quiz_manager.autosave()
             self.status_label.setText("Synced to server")
+            self._set_monitoring_status(
+                self.monitoring_client.send_autosave(message="Autosave completed")
+            )
         except ApiClientError as exc:
             self.status_label.setText("Autosave failed, changes kept locally")
             if not in_background:
@@ -130,7 +153,12 @@ class ExamWindow(QWidget):
             attempt = result.get("attempt", {})
             self._submitted = True
             self.autosave_timer.stop()
+            self.monitoring_timer.stop()
             self._set_editable(False)
+            self._set_monitoring_status(
+                self.monitoring_client.send_submitted(status="submitted", message="Exam submitted")
+            )
+            self.monitoring_client.clear_session()
             self.status_label.setText(
                 f"Submitted successfully. Attempt status: {attempt.get('status', 'submitted')}"
             )
@@ -149,3 +177,26 @@ class ExamWindow(QWidget):
     def _set_editable(self, editable: bool) -> None:
         for widget in self._question_inputs.values():
             widget.setReadOnly(not editable)
+
+    def _send_heartbeat(self) -> None:
+        if self._submitted:
+            return
+        self._set_monitoring_status(
+            self.monitoring_client.send_heartbeat(message="Heartbeat")
+        )
+
+    def _set_monitoring_status(self, ok: bool) -> None:
+        if ok:
+            self.monitoring_status_label.setText("Live monitoring connected")
+        else:
+            self.monitoring_status_label.setText("Live monitoring unavailable")
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        self.autosave_timer.stop()
+        self.monitoring_timer.stop()
+        if not self._submitted:
+            self._set_monitoring_status(
+                self.monitoring_client.send_disconnected(message="Exam window closed")
+            )
+        self.monitoring_client.clear_session()
+        super().closeEvent(event)

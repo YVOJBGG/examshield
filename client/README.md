@@ -1,4 +1,4 @@
-# ExamShield Student Client (Milestone 3)
+# ExamShield Student Client (Milestone 4)
 
 Minimal PyQt student app for:
 - login
@@ -8,6 +8,7 @@ Minimal PyQt student app for:
 - autosave
 - submit
 - local disk caching for offline-safe answer persistence
+- live monitoring status events for admin dashboard
 
 ## Requirements
 
@@ -46,6 +47,26 @@ python -m app.main
 - Use a seeded student account from server seed data (for example `student1` / `student123`).
 - Enter a valid exam UUID in the login screen.
 - Autosave runs every 25 seconds and can be triggered manually.
+- Monitoring starts automatically after attempt start and sends periodic heartbeat updates.
+
+## Milestone 4 Live Monitoring (Student -> Server)
+
+The student client now sends monitoring events to backend endpoint:
+- `POST /monitoring/status` (student JWT required)
+
+This uses the existing `requests`-based REST client (no new dependency added).
+
+Event triggers in the current UI flow:
+- `connected`: right after login + exam load + attempt start in login flow.
+- `in_exam`: when exam window opens.
+- `autosave`: after successful answer autosave.
+- `submitted`: after successful final submit.
+- `disconnected`: best-effort when exam window closes before submit.
+- heartbeat: every 12 seconds during active exam, sent as `in_exam`.
+
+If monitoring send fails, exam actions continue. The exam window shows:
+- `Live monitoring connected`
+- `Live monitoring unavailable`
 
 ## Local Answer Cache Behavior
 

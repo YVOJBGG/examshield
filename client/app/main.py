@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import QApplication
 
 from app.config import DEFAULT_API_BASE_URL
 from app.services.auth_manager import AuthManager
+from app.services.monitoring_client import MonitoringClient
 from app.services.network_client import NetworkClient
 from app.services.quiz_manager import QuizManager
 from app.ui.login_window import LoginWindow
@@ -15,8 +16,13 @@ def main() -> int:
     network_client = NetworkClient(DEFAULT_API_BASE_URL)
     auth_manager = AuthManager(network_client)
     quiz_manager = QuizManager(network_client)
+    monitoring_client = MonitoringClient(network_client)
 
-    login_window = LoginWindow(auth_manager=auth_manager, quiz_manager=quiz_manager)
+    login_window = LoginWindow(
+        auth_manager=auth_manager,
+        quiz_manager=quiz_manager,
+        monitoring_client=monitoring_client,
+    )
     login_window.show()
     return app.exec()
 
