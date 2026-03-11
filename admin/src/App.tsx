@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Link, Navigate, Route, Routes } from "react-router-dom";
 
 import { adminPing, clearToken, getMe, getToken, login, setToken, type MeResponse } from "./lib/api";
 import ExamEditorPage from "./pages/ExamEditorPage";
 import ExamsListPage from "./pages/ExamsListPage";
+import LiveMonitoringPage from "./pages/LiveMonitoringPage";
 
 function App() {
   const [username, setUsername] = useState("");
@@ -124,9 +125,14 @@ function App() {
             </div>
             {pingResult && <pre>{pingResult}</pre>}
           </section>
+          <nav className="panel nav-links">
+            <Link to="/">Exams</Link>
+            <Link to="/monitoring">Live Monitoring</Link>
+          </nav>
 
           <Routes>
             <Route path="/" element={<ExamsListPage onAuthError={handleAuthError} />} />
+            <Route path="/monitoring" element={<LiveMonitoringPage />} />
             <Route path="/exams/:examId" element={<ExamEditorPage onAuthError={handleAuthError} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
