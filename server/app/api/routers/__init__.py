@@ -3,6 +3,7 @@ from app.api.routers.admin import router as admin_router
 from app.api.routers.attempts import router as attempts_router
 from app.api.routers.auth import router as auth_router
 from app.api.routers.exams import router as exams_router
+from app.api.routers.monitoring import router as monitoring_router
 from app.api.routers.student_exams import router as student_exams_router
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "attempts_router",
     "student_exams_router",
     "answers_router",
+    "monitoring_router",
 ]

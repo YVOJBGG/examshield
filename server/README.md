@@ -191,3 +191,90 @@ curl -s -X POST http://127.0.0.1:8000/answers/submit \
   -H "Content-Type: application/json" \
   -d '{"attempt_id":"<attempt_uuid>","answers":[{"question_id":"<question_uuid>","answer_text":"My final answer"}]}'
 ```
+
+## Milestone 4 Live Monitoring API
+
+Scope for this milestone:
+- Real-time admin monitoring via WebSocket push (no polling required).
+- Student status event ingest via REST and immediate broadcast to admins.
+- In-memory active-attempt snapshot for fast dashboard initialization.
+- No screenshot streaming, no violation alerts, no persistence for monitoring events.
+
+### Endpoints
+
+1. `GET ws://127.0.0.1:8000/ws/admin/monitor?token=<admin_jwt>`
+- Auth: query `token` must be a valid admin JWT.
+- On connect: server sends a snapshot message:
+```json
+{
+  "type": "snapshot",
+  "attempts": [
+    {
+      "attempt_id": "00000000-0000-0000-0000-000000000001",
+      "username": "student1",
+      "exam_id": "00000000-0000-0000-0000-000000000010",
+      "status": "in_progress",
+      "last_event": "autosave",
+      "last_update": "2026-02-22T12:00:00Z"
+    }
+  ]
+}
+```
+- Then receives event pushes:
+```json
+{
+  "type": "event",
+  "data": {
+    "event_type": "in_exam",
+    "timestamp": "2026-02-22T12:00:00Z",
+    "user_id": "00000000-0000-0000-0000-000000000002",
+    "username": "student1",
+    "exam_id": "00000000-0000-0000-0000-000000000010",
+    "attempt_id": "00000000-0000-0000-0000-000000000001",
+    "status": "in_progress",
+    "message": "Student started exam"
+  }
+}
+```
+- Invalid token or non-admin role: connection is closed with policy violation.
+
+2. `POST /monitoring/status`
+- Auth: student bearer token required (`require_student`).
+- Allowed `event_type`: `connected`, `in_exam`, `autosave`, `submitted`, `disconnected`.
+- Request:
+```json
+{
+  "event_type": "autosave",
+  "timestamp": "2026-02-22T12:01:00Z",
+  "exam_id": "00000000-0000-0000-0000-000000000010",
+  "attempt_id": "00000000-0000-0000-0000-000000000001",
+  "status": "in_progress",
+  "message": "Draft saved"
+}
+```
+- Response: enriched event payload (adds `user_id`, `username`) and broadcasts to all connected admin sockets.
+
+### Student sender example (curl)
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/monitoring/status \
+  -H "Authorization: Bearer <student_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"event_type":"in_exam","exam_id":"<exam_uuid>","attempt_id":"<attempt_uuid>","status":"in_progress","message":"Student started exam"}'
+```
+
+### Admin WebSocket example (minimal JavaScript)
+
+```js
+const token = "<admin_jwt>";
+const ws = new WebSocket(`ws://127.0.0.1:8000/ws/admin/monitor?token=${encodeURIComponent(token)}`);
+
+ws.onmessage = (event) => {
+  const payload = JSON.parse(event.data);
+  if (payload.type === "snapshot") {
+    console.log("Initial attempts:", payload.attempts);
+  } else if (payload.type === "event") {
+    console.log("Live event:", payload.data);
+  }
+};
+```
