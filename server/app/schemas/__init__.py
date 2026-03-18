@@ -14,9 +14,12 @@ from app.schemas.monitoring import (
     MonitoringEventOut,
     MonitoringSnapshotEnvelope,
     MonitoringStatusIn,
+    ViolationBroadcastOut,
+    ViolationEnvelope,
 )
 from app.schemas.question import QuestionCreate, QuestionOut, QuestionUpdate
 from app.schemas.student_exam import StudentExamListItem, StudentExamOut, StudentQuestionOut
+from app.schemas.violation import ViolationCreate, ViolationListItem, ViolationOut
 
 __all__ = [
     "HealthResponse",
@@ -35,10 +38,15 @@ __all__ = [
     "DashboardAttemptSnapshot",
     "MonitoringSnapshotEnvelope",
     "MonitoringEventEnvelope",
+    "ViolationBroadcastOut",
+    "ViolationEnvelope",
     "ExamCreate",
     "ExamUpdate",
     "ExamOut",
     "QuestionCreate",
     "QuestionUpdate",
     "QuestionOut",
+    "ViolationCreate",
+    "ViolationOut",
+    "ViolationListItem",
 ]

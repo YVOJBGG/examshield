@@ -278,3 +278,98 @@ ws.onmessage = (event) => {
   }
 };
 ```
+
+## Milestone 5 Violations and Instant Alerts API
+
+Scope for this milestone:
+- Students can report violations tied to an active attempt.
+- Violations are persisted in the database.
+- Violations are broadcast live to connected admin dashboards.
+- Monitoring snapshots now include `alert_count`, `has_alerts`, `last_violation_type`, and `last_violation_at`.
+
+### Endpoints
+
+1. `POST /violations`
+- Auth: student bearer token required (`require_student`).
+- Request:
+```json
+{
+  "attempt_id": "00000000-0000-0000-0000-000000000001",
+  "type": "focus_lost",
+  "details": "Window lost focus during exam"
+}
+```
+- Response `201`:
+```json
+{
+  "id": "00000000-0000-0000-0000-000000000101",
+  "attempt_id": "00000000-0000-0000-0000-000000000001",
+  "type": "focus_lost",
+  "details": "Window lost focus during exam",
+  "created_at": "2026-03-18T10:15:00Z"
+}
+```
+- Validation:
+  - attempt must exist
+  - attempt must belong to the authenticated student
+  - attempt must still be `in_progress`
+  - `type` must be non-empty
+
+2. `GET /violations/attempt/{attempt_id}`
+- Auth: admin bearer token required (`require_admin`).
+- Response:
+```json
+[
+  {
+    "id": "00000000-0000-0000-0000-000000000101",
+    "attempt_id": "00000000-0000-0000-0000-000000000001",
+    "type": "focus_lost",
+    "details": "Window lost focus during exam",
+    "created_at": "2026-03-18T10:15:00Z"
+  }
+]
+```
+
+### Live admin broadcast
+
+Every successful `POST /violations` call also pushes this message to all active admin monitor sockets:
+
+```json
+{
+  "type": "violation",
+  "data": {
+    "id": "00000000-0000-0000-0000-000000000101",
+    "attempt_id": "00000000-0000-0000-0000-000000000001",
+    "type": "focus_lost",
+    "details": "Window lost focus during exam",
+    "created_at": "2026-03-18T10:15:00Z",
+    "username": "student1",
+    "exam_id": "00000000-0000-0000-0000-000000000010",
+    "status": "in_progress"
+  }
+}
+```
+
+The broadcast is sent after the in-memory monitoring snapshot is updated, so newly connected admin dashboards immediately receive the correct alert metadata for active attempts.
+
+### curl examples
+
+Create a violation:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/violations \
+  -H "Authorization: Bearer <student_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "attempt_id":"<attempt_uuid>",
+    "type":"focus_lost",
+    "details":"Window lost focus during exam"
+  }'
+```
+
+List one attempt's violations:
+
+```bash
+curl -s http://127.0.0.1:8000/violations/attempt/<attempt_uuid> \
+  -H "Authorization: Bearer <admin_token>"
+```
