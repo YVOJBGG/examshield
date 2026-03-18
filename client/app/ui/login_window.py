@@ -16,6 +16,7 @@ from app.services.auth_manager import AuthManager
 from app.services.monitoring_client import MonitoringClient
 from app.services.network_client import ApiClientError
 from app.services.quiz_manager import QuizManager
+from app.services.violation_service import ViolationService
 from app.ui.exam_window import ExamWindow
 
 
@@ -25,11 +26,13 @@ class LoginWindow(QWidget):
         auth_manager: AuthManager,
         quiz_manager: QuizManager,
         monitoring_client: MonitoringClient,
+        violation_service: ViolationService,
     ) -> None:
         super().__init__()
         self.auth_manager = auth_manager
         self.quiz_manager = quiz_manager
         self.monitoring_client = monitoring_client
+        self.violation_service = violation_service
         self.exam_window: ExamWindow | None = None
 
         self.setWindowTitle("ExamShield Student Login")
@@ -86,6 +89,7 @@ class LoginWindow(QWidget):
             self.exam_window = ExamWindow(
                 quiz_manager=self.quiz_manager,
                 monitoring_client=self.monitoring_client,
+                violation_service=self.violation_service,
                 autosave_interval_ms=AUTOSAVE_INTERVAL_MS,
             )
             self.exam_window.show()

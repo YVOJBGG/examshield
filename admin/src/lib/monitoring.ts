@@ -12,6 +12,10 @@ export type SnapshotAttempt = {
   status: string;
   last_event: string;
   last_update: string;
+  alert_count?: number;
+  has_alerts?: boolean;
+  last_violation_type?: string | null;
+  last_violation_at?: string | null;
 };
 
 export type MonitoringEventPayload = {
@@ -25,9 +29,21 @@ export type MonitoringEventPayload = {
   message?: string | null;
 };
 
+export type ViolationPayload = {
+  id: string;
+  attempt_id: string;
+  type: string;
+  details?: string | null;
+  created_at: string;
+  username: string;
+  exam_id: string;
+  status: string;
+};
+
 export type MonitoringMessage =
   | { type: "snapshot"; attempts: SnapshotAttempt[] }
-  | { type: "event"; data: MonitoringEventPayload };
+  | { type: "event"; data: MonitoringEventPayload }
+  | { type: "violation"; data: ViolationPayload };
 
 type Callbacks = {
   onOpen: () => void;

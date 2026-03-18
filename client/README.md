@@ -1,4 +1,4 @@
-# ExamShield Student Client (Milestone 4)
+# ExamShield Student Client (Milestone 5)
 
 Minimal PyQt student app for:
 - login
@@ -9,6 +9,7 @@ Minimal PyQt student app for:
 - submit
 - local disk caching for offline-safe answer persistence
 - live monitoring status events for admin dashboard
+- best-effort client-side violation reporting
 
 ## Requirements
 
@@ -48,6 +49,29 @@ python -m app.main
 - Enter a valid exam UUID in the login screen.
 - Autosave runs every 25 seconds and can be triggered manually.
 - Monitoring starts automatically after attempt start and sends periodic heartbeat updates.
+- Violation reporting is best-effort and must not block the exam flow.
+
+## Milestone 5 Violation Reporting
+
+The student client now sends violation events to backend endpoint:
+- `POST /violations` (student JWT required)
+
+Currently implemented UI triggers:
+- `focus_lost`: sent when the exam window is deactivated or loses focus while the attempt is active
+- `manual_flag`: sent from a dev-only `Trigger Test Violation` control
+
+Behavior notes:
+- violations are tied to the current `attempt_id`
+- repeated `focus_lost` reports are throttled with a 5-second cooldown
+- reporting failures do not crash the exam flow
+- a small status line in the exam window shows the last violation send result
+- full lockdown and advanced OS-level monitoring are intentionally deferred to a later milestone
+
+Dev-mode toggle:
+
+```powershell
+$env:EXAMSHIELD_DEV_MODE="1"
+```
 
 ## Milestone 4 Live Monitoring (Student -> Server)
 

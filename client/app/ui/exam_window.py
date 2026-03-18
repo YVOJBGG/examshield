@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QEvent, QTimer
 from PyQt6.QtGui import QCloseEvent
 from PyQt6.QtWidgets import (
     QHBoxLayout,
@@ -13,10 +13,11 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from app.config import MONITORING_HEARTBEAT_INTERVAL_MS
+from app.config import DEV_MODE, MONITORING_HEARTBEAT_INTERVAL_MS
 from app.services.monitoring_client import MonitoringClient
 from app.services.network_client import ApiClientError
 from app.services.quiz_manager import QuizManager
+from app.services.violation_service import ViolationService
 
 
 class ExamWindow(QWidget):
@@ -24,11 +25,13 @@ class ExamWindow(QWidget):
         self,
         quiz_manager: QuizManager,
         monitoring_client: MonitoringClient,
+        violation_service: ViolationService,
         autosave_interval_ms: int = 25000,
     ) -> None:
         super().__init__()
         self.quiz_manager = quiz_manager
         self.monitoring_client = monitoring_client
+        self.violation_service = violation_service
         self.autosave_interval_ms = autosave_interval_ms
         self._question_inputs: dict[str, QTextEdit] = {}
         self._submitted = False
@@ -44,6 +47,7 @@ class ExamWindow(QWidget):
         self.time_limit_label = QLabel(f"Time limit: {exam.time_limit_minutes} minutes")
         self.status_label = QLabel("Attempt started.")
         self.monitoring_status_label = QLabel("Live monitoring unavailable")
+        self.violation_status_label = QLabel("Violation reporting idle")
 
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)
@@ -68,10 +72,15 @@ class ExamWindow(QWidget):
         self.autosave_button.clicked.connect(self._autosave_now)
         self.submit_button = QPushButton("Submit Exam")
         self.submit_button.clicked.connect(self._submit_exam)
+        self.debug_violation_button = QPushButton("Trigger Test Violation")
+        self.debug_violation_button.clicked.connect(self._trigger_test_violation)
+        self.debug_violation_button.setVisible(DEV_MODE)
 
         button_row = QHBoxLayout()
         button_row.addWidget(self.autosave_button)
         button_row.addWidget(self.submit_button)
+        if DEV_MODE:
+            button_row.addWidget(self.debug_violation_button)
 
         layout = QVBoxLayout()
         layout.addWidget(self.title_label)
@@ -80,6 +89,7 @@ class ExamWindow(QWidget):
         layout.addLayout(button_row)
         layout.addWidget(self.status_label)
         layout.addWidget(self.monitoring_status_label)
+        layout.addWidget(self.violation_status_label)
         self.setLayout(layout)
 
         self.autosave_timer = QTimer(self)
@@ -191,10 +201,44 @@ class ExamWindow(QWidget):
         else:
             self.monitoring_status_label.setText("Live monitoring unavailable")
 
+    def _set_violation_status(self, ok: bool) -> None:
+        _ = ok
+        self.violation_status_label.setText(self.violation_service.last_status_message)
+
+    def _current_attempt_id(self) -> str | None:
+        return self.quiz_manager.current_attempt_id
+
+    def _trigger_test_violation(self) -> None:
+        attempt_id = self._current_attempt_id()
+        if not attempt_id:
+            self.violation_status_label.setText("Violation reporting unavailable: attempt missing")
+            return
+        ok = self.violation_service.report_manual_flag(
+            attempt_id,
+            "Manual test violation triggered from debug control",
+        )
+        self._set_violation_status(ok)
+
+    def _report_focus_lost(self) -> None:
+        if self._submitted:
+            return
+        attempt_id = self._current_attempt_id()
+        if not attempt_id:
+            self.violation_status_label.setText("Violation reporting unavailable: attempt missing")
+            return
+        ok = self.violation_service.report_focus_lost(attempt_id)
+        self._set_violation_status(ok)
+
+    def event(self, event: QEvent) -> bool:
+        if event.type() == QEvent.Type.WindowDeactivate:
+            self._report_focus_lost()
+        return super().event(event)
+
     def closeEvent(self, event: QCloseEvent) -> None:
         self.autosave_timer.stop()
         self.monitoring_timer.stop()
         if not self._submitted:
+            self._report_focus_lost()
             self._set_monitoring_status(
                 self.monitoring_client.send_disconnected(message="Exam window closed")
             )

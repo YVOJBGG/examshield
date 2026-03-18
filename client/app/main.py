@@ -7,6 +7,7 @@ from app.services.auth_manager import AuthManager
 from app.services.monitoring_client import MonitoringClient
 from app.services.network_client import NetworkClient
 from app.services.quiz_manager import QuizManager
+from app.services.violation_service import ViolationService
 from app.ui.login_window import LoginWindow
 
 
@@ -17,11 +18,13 @@ def main() -> int:
     auth_manager = AuthManager(network_client)
     quiz_manager = QuizManager(network_client)
     monitoring_client = MonitoringClient(network_client)
+    violation_service = ViolationService(network_client)
 
     login_window = LoginWindow(
         auth_manager=auth_manager,
         quiz_manager=quiz_manager,
         monitoring_client=monitoring_client,
+        violation_service=violation_service,
     )
     login_window.show()
     return app.exec()

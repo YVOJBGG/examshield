@@ -124,3 +124,18 @@ class NetworkClient:
         if message:
             payload["message"] = message
         return self._request("POST", "/monitoring/status", payload)
+
+    def report_violation(
+        self,
+        *,
+        attempt_id: str,
+        violation_type: str,
+        details: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "attempt_id": attempt_id,
+            "type": violation_type,
+        }
+        if details:
+            payload["details"] = details
+        return self._request("POST", "/violations", payload)

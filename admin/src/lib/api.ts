@@ -48,6 +48,14 @@ export type QuestionCreate = {
 
 export type QuestionUpdate = Partial<QuestionCreate>;
 
+export type ViolationListItem = {
+  id: string;
+  attempt_id: string;
+  type: string;
+  details?: string | null;
+  created_at: string;
+};
+
 export function setToken(token: string): void {
   localStorage.setItem(TOKEN_KEY, token);
 }
@@ -222,4 +230,12 @@ export async function deleteQuestion(examId: string, questionId: string): Promis
   if (!response.ok) {
     throw new ApiError(response.status, await readErrorMessage(response, "Could not delete question"));
   }
+}
+
+export async function listAttemptViolations(attemptId: string): Promise<ViolationListItem[]> {
+  const response = await authFetch(`/violations/attempt/${attemptId}`);
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not load violations"));
+  }
+  return parseJson<ViolationListItem[]>(response);
 }
