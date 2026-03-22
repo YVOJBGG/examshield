@@ -3,26 +3,35 @@
 ## A) Project Overview
 
 ExamShield is an online exam integrity system with three applications:
-- `admin/`: React admin portal for exam management and monitoring.
-- `server/`: FastAPI backend API, authentication, and persistence.
-- `client/`: Student desktop client workspace (PyQt planned, scaffold only).
+- `admin/`: React admin portal for exam management and live monitoring.
+- `server/`: FastAPI backend API, authentication, persistence, and WebSocket monitoring stream.
+- `client/`: PyQt student desktop client for login, exam execution, autosave, monitoring, and minimal violation reporting.
 
 System goals:
-- Enforce secure exam behavior (lockdown on student side).
+- Enforce secure exam behavior on the student side.
 - Detect and record suspicious behavior as violations.
 - Capture screenshots during attempts.
 - Give admins visibility into active attempts and incidents.
 
 Current project state:
-- Milestone 0: Done (project setup and runnable scaffold).
-- Milestone 1: Planned/starting, with partial implementation already present:
-  - PostgreSQL + SQLAlchemy + Alembic initial migration implemented.
-  - FR-01 JWT auth baseline implemented (`/auth/login`, `/auth/me`, role guards).
-  - Minimal admin login validation UI implemented.
-- Milestone 2: Started, backend FR-07 implemented:
-  - Admin-only CRUD for `exams` and nested `questions` implemented in API.
-  - Service layer + Pydantic schemas added for exam/question management.
-  - Remaining FR modules are planned (see sections C, G, H).
+- Milestone 0: Done.
+- Milestone 1: Implemented baseline auth and project setup.
+  - PostgreSQL + SQLAlchemy + Alembic migrations in place.
+  - JWT auth implemented with `/auth/login` and `/auth/me`.
+  - Role guards implemented for `admin` and `student`.
+- Milestone 2: Implemented exam management.
+  - Admin-only CRUD for exams and nested questions is implemented in backend and admin UI.
+- Milestone 3: Implemented student exam execution.
+  - Student exam fetch, attempt start, autosave, submit, and local cache are implemented.
+  - Answer upsert flow is backed by a uniqueness migration for `(attempt_id, question_id)`.
+- Milestone 4: Implemented live monitoring.
+  - Student client sends monitoring status events.
+  - Backend exposes admin monitoring WebSocket and in-memory snapshot state.
+  - Admin UI shows live monitoring connection status and active attempt updates.
+- Milestone 5: Implemented backend/client/admin violations and live alerts.
+  - Student client can report best-effort violations.
+  - Backend persists violations, validates attempt ownership/state, and broadcasts admin alerts.
+  - Admin UI shows alert toasts, highlighted rows, alert filtering, and per-attempt violation history.
 
 ## B) Repository Structure (actual tree)
 
@@ -35,12 +44,33 @@ examshield/
 |  |  |- App.tsx
 |  |  |- main.tsx
 |  |  |- style.css
-|  |  `- lib/api.ts
+|  |  |- lib/
+|  |  |  |- api.ts
+|  |  |  `- monitoring.ts
+|  |  `- pages/
+|  |     |- ExamEditorPage.tsx
+|  |     |- ExamsListPage.tsx
+|  |     `- LiveMonitoringPage.tsx
 |  |- .env(.example)
 |  |- package.json
 |  `- README.md
 |- client/
-|  `- app/                     # student app workspace (minimal currently)
+|  |- app/
+|  |  |- main.py
+|  |  |- config.py
+|  |  |- services/
+|  |  |  |- auth_manager.py
+|  |  |  |- monitoring_client.py
+|  |  |  |- network_client.py
+|  |  |  |- quiz_manager.py
+|  |  |  `- violation_service.py
+|  |  |- storage/
+|  |  `- ui/
+|  |     |- exam_window.py
+|  |     `- login_window.py
+|  |- app_data/
+|  |- requirements.txt
+|  `- README.md
 |- docs/
 |  |- diagrams/architecture.puml
 |  |- srs/
@@ -48,39 +78,38 @@ examshield/
 |- server/
 |  |- alembic/
 |  |  |- env.py
-|  |  `- versions/0001_initial_schema.py
+|  |  `- versions/
+|  |     |- 0001_initial_schema.py
+|  |     `- 0002_answers_unique.py
 |  |- app/
 |  |  |- api/
 |  |  |  |- deps.py
 |  |  |  |- routers/
+|  |  |  |  |- admin.py
+|  |  |  |  |- answers.py
+|  |  |  |  |- attempts.py
 |  |  |  |  |- auth.py
-|  |  |  |  `- admin.py
-|  |  |  |  `- exams.py
+|  |  |  |  |- exams.py
+|  |  |  |  |- monitoring.py
+|  |  |  |  |- student_exams.py
+|  |  |  |  `- violations.py
 |  |  |  `- v1/router.py
 |  |  |- core/
-|  |  |  |- config.py
-|  |  |  `- security.py
 |  |  |- db/
-|  |  |  |- base.py
-|  |  |  `- session.py
 |  |  |- models/
-|  |  |  |- user.py
-|  |  |  |- exam.py
-|  |  |  |- question.py
-|  |  |  |- attempt.py
-|  |  |  |- answer.py
-|  |  |  |- violation.py
-|  |  |  `- screenshot.py
 |  |  |- schemas/
 |  |  |- services/
 |  |  |- scripts/seed.py
 |  |  `- main.py
 |  |- tests/
 |  |  |- conftest.py
-|  |  |- test_health.py
-|  |  `- test_auth.py
+|  |  |- test_attempts_flow.py
+|  |  |- test_auth.py
 |  |  |- test_exams_crud.py
-|  |  `- test_questions_crud.py
+|  |  |- test_health.py
+|  |  |- test_questions_crud.py
+|  |  |- test_student_exam_execution.py
+|  |  `- test_violations.py
 |  |- docker-compose.yml
 |  |- alembic.ini
 |  |- requirements.txt
@@ -89,30 +118,10 @@ examshield/
 ```
 
 Purpose of top-level folders:
-- `server/`: backend API, DB schema/migrations, business logic, tests.
-- `admin/`: admin web app and frontend API client code.
-- `client/`: student desktop app workspace (implementation pending).
-- `docs/`: architecture, SRS materials, and this source-of-truth document.
-
-Server app layout (`server/app`):
-- `core`: settings and security primitives.
-- `db`: SQLAlchemy base/session.
-- `models`: database entities and relations.
-- `schemas`: Pydantic request/response contracts.
-- `services`: business service layer.
-- `api`: route handlers and auth dependencies.
-- `scripts`: operational scripts (seed).
-- `tests` (outside app): integration and behavior tests.
-
-Admin source layout (`admin/src`):
-- Current: `App.tsx`, `main.tsx`, `style.css`, `lib/api.ts`.
-- Planned growth: `pages/`, `components/`, `lib/`.
-- To confirm: final route/page split after dashboard expansion.
-
-Docs usage:
-- `docs/srs/`: requirements artifacts.
-- `docs/diagrams/`: architecture diagrams.
-- `docs/PROJECT_DOCUMENTATION.md`: canonical engineering reference.
+- `server/`: backend API, DB schema/migrations, business logic, and tests.
+- `admin/`: admin SPA for exams and live monitoring.
+- `client/`: PyQt student client with exam execution, autosave, monitoring, and minimal violation reporting.
+- `docs/`: architecture, SRS artifacts, and this canonical reference.
 
 ## C) Functional Requirements (FR) + Nonfunctional (NFR)
 
@@ -124,119 +133,134 @@ Priority order:
 Functional requirements:
 - FR-01 Auth (P0)
   - Login and role-based access (`admin`, `student`).
-  - Approach: bcrypt password hashes + JWT claims (`sub`, `role`, `username`, `exp`).
-  - Current: partially implemented and in use.
+  - Current: implemented and in use.
 
 - FR-02 Lockdown (P0)
   - Student restrictions during active attempt.
-  - Approach: client `LockdownManager` service.
-  - To confirm: exact OS-level restrictions and exceptions.
+  - Current: not implemented yet.
+  - Planned approach: client `LockdownManager`.
 
 - FR-03 Screenshots (P0)
   - Capture screenshot evidence during attempt.
-  - Approach: client screenshot service + backend metadata persistence.
+  - Current: backend data model exists; end-to-end feature not implemented yet.
 
 - FR-04 Cheating detection (P0)
   - Detect focus loss/forbidden actions and persist violations.
-  - Approach: client event detection + `violations` API.
+  - Current: minimally implemented end-to-end.
+  - Implemented triggers:
+    - `focus_lost`
+    - `manual_flag` (dev/debug trigger)
+  - Full OS-level detection remains later work.
 
 - FR-05 Exam start (P0)
   - Student starts exam and gets active attempt.
-  - Approach: attempts API creates row in `attempts`.
+  - Current: implemented with `POST /attempts/start`.
 
 - FR-06 Answer autosave (P0)
   - Persist answers continuously.
-  - Approach: answer save API + offline queue retry.
+  - Current: implemented with autosave/submit endpoints and client local cache fallback.
 
 - FR-07 Exam management (P1)
   - Admin create/manage exams and questions.
-  - Approach: exams/questions CRUD endpoints + admin pages.
-  - Current: backend CRUD implemented (admin-only) and covered by dedicated API tests; admin UI pages still pending.
+  - Current: implemented in backend and admin UI.
 
 - FR-08 Live monitor (P1)
   - Real-time admin view of attempts and violations.
-  - Approach: WebSocket stream + REST fallback query.
+  - Current: implemented with WebSocket snapshot/event stream and live admin dashboard.
 
 - FR-09 Alerts (P1)
-  - Notify admins on high-risk behavior.
-  - Approach: rule-based event aggregation and alert events.
+  - Notify admins on suspicious behavior.
+  - Current: basic implementation complete.
+  - Violations trigger live admin toast notifications, alert counters, highlighted rows, and violation history panel.
 
 - FR-10 Reports (P2)
   - Export incident/attempt reports post exam.
-  - Approach: reports endpoints and summary generation.
+  - Current: not implemented yet.
 
 Nonfunctional requirements:
 - NFR-01 Real-time latency under 2s for monitor updates.
-  - Approach: WebSocket push channel.
+  - Current approach: WebSocket push channel for monitoring and violation alerts.
 - NFR-02 Security and least privilege.
-  - Approach: JWT auth, strict role guards, minimal token claims.
+  - Current approach: JWT auth, strict role guards, minimal token claims.
 - NFR-03 Auditability.
-  - Approach: timestamped attempts/answers/violations/screenshots.
+  - Current approach: timestamped attempts, answers, violations, and screenshots schema.
 - NFR-04 Offline caching.
-  - Approach: client `OfflineQueue` with retry policy.
+  - Current approach: client local JSON cache with retry behavior for answers.
 - NFR-05 Reliability.
-  - Approach: transactional writes, idempotent seed and safe retries.
+  - Current approach: transactional writes, idempotent attempt start, answer upsert, best-effort monitoring/violation reporting on client.
 - NFR-06 Maintainability.
-  - Approach: layered backend and module boundaries.
+  - Current approach: layered backend modules and split frontend/client service boundaries.
 - NFR-07 Performance baseline.
-  - Approach: FK indexes, paginated list endpoints.
+  - Current approach: FK indexes plus unique constraint on answers per attempt/question.
 - NFR-08 Portability.
-  - Approach: env-based config + dockerized local Postgres.
+  - Current approach: env-based configuration and dockerized local Postgres.
 
 ## D) Use Cases + Main User Flows
 
 UC-1 Student takes exam:
-1. Student signs in.
-2. Student selects/receives exam assignment.
-3. Client calls start attempt endpoint.
-4. Lockdown activates.
-5. Questions load and student answers.
-6. Autosave runs periodically and on edits.
-7. Client emits violations and screenshot events.
-8. Offline queue buffers failed sends and retries.
-9. Student submits attempt.
-10. Admin later reviews activity/report.
+1. Student signs in from PyQt client.
+2. Student enters assigned exam ID.
+3. Client loads student-safe exam content.
+4. Client calls attempt start endpoint.
+5. Exam window opens.
+6. Student answers are cached locally on change.
+7. Autosave runs periodically or manually.
+8. Client emits monitoring events during the attempt.
+9. Client emits best-effort violation events on focus loss or manual trigger.
+10. Student submits attempt.
 
 UC-2 Admin monitors exam:
-1. Admin logs in.
-2. Admin opens monitor dashboard.
-3. Dashboard subscribes to real-time stream (or polls).
-4. Attempt updates and violations appear.
-5. Alerts are shown for suspicious activity.
-6. Admin drills into specific attempt.
-7. Admin exports/reviews report after exam.
+1. Admin logs in to React admin portal.
+2. Admin opens `/monitoring`.
+3. Dashboard connects to WebSocket and receives snapshot.
+4. Attempt updates stream live.
+5. Violation alerts appear as toast + highlighted rows.
+6. Admin filters to alerted attempts if needed.
+7. Admin opens a violation history panel for a specific attempt.
 
 ## E) Architecture
 
 High-level summary:
-- Frontend admin SPA talks to backend REST and planned WebSocket channel.
-- Backend enforces auth/roles and persists to PostgreSQL.
-- Planned student client produces attempt/answer/violation/screenshot events.
+- Admin SPA talks to backend REST and admin monitoring WebSocket.
+- Student client talks to backend REST for auth, exam fetch, attempts, answers, monitoring, and violations.
+- Backend persists to PostgreSQL and keeps an in-memory monitoring snapshot for active attempts.
 
 Component interactions:
-- REST for CRUD/actions (`/auth`, `/exams`, planned `/attempts`, `/answers`, etc.).
-- WebSocket for live monitor updates (planned).
+- REST:
+  - `/auth`
+  - `/exams`
+  - `/student/exams`
+  - `/attempts/start`
+  - `/answers/autosave`
+  - `/answers/submit`
+  - `/monitoring/status`
+  - `/violations`
+- WebSocket:
+  - `/ws/admin/monitor?token=<admin_jwt>`
 
 Text data flow:
 - Login:
-  - Admin or student -> `POST /auth/login` -> verify user hash -> JWT returned.
-- Attempt execution:
-  - Student client -> attempt start -> answer autosave and incident events -> DB.
+  - Admin or student -> `POST /auth/login` -> JWT returned.
+- Student exam execution:
+  - Student client -> load exam -> start attempt -> autosave/submit answers -> DB.
 - Monitoring:
-  - Backend event persisted -> monitor stream emits update -> admin UI refreshes.
+  - Student client -> `POST /monitoring/status` -> backend updates in-memory snapshot -> admin WebSocket receives `snapshot`/`event`.
+- Violations:
+  - Student client -> `POST /violations` -> violation row stored -> monitoring snapshot updated -> admin WebSocket receives `violation`.
 
 Security boundaries:
 - JWT bearer required on protected endpoints.
-- Role guards:
-  - `require_admin`
-  - `require_student`
-- Password hashes only (bcrypt via passlib).
+- `require_admin` for admin-only routes and monitor socket.
+- `require_student` for student actions.
+- Students may only report violations for their own active attempts.
 
 ## F) Data Model (ERD -> actual tables)
 
-Schema source:
+Schema sources:
 - ORM models: `server/app/models/*.py`
-- Migration: `server/alembic/versions/0001_initial_schema.py`
+- Migrations:
+  - `server/alembic/versions/0001_initial_schema.py`
+  - `server/alembic/versions/0002_answers_unique.py`
 
 All primary keys are UUID and server generated.
 
@@ -268,6 +292,8 @@ All primary keys are UUID and server generated.
 - Fields: `id`, `attempt_id`, `question_id`, `answer_text`, `saved_at`
 - FKs: `attempt_id -> attempts.id`, `question_id -> questions.id`
 - Indexes: attempt_id, question_id
+- Constraints:
+  - unique `(attempt_id, question_id)` from migration `0002_answers_unique`
 
 `violations`
 - Fields: `id`, `attempt_id`, `type`, `details`, `created_at`
@@ -280,9 +306,8 @@ All primary keys are UUID and server generated.
 - Index: attempt_id
 
 Screenshot storage strategy:
-- Binary image file stored outside DB.
 - DB stores metadata and `file_path`.
-- To confirm: production storage target (local volume vs object storage).
+- End-to-end screenshot upload/capture is still pending.
 
 ## G) API Contracts (very important)
 
@@ -291,48 +316,16 @@ Base URL (dev): `http://localhost:8000` or `http://127.0.0.1:8000`
 Auth:
 - Header: `Authorization: Bearer <token>`
 
-Auth module (implemented):
+Implemented endpoints:
 
-1. `POST /auth/login`
-- Auth required: no
-- Roles: N/A
-- Request:
-```json
-{"username":"admin","password":"admin123"}
-```
-- Response 200:
-```json
-{"access_token":"<jwt>","token_type":"bearer"}
-```
-- Errors:
-  - 401 invalid credentials
+Auth:
+- `POST /auth/login`
+- `GET /auth/me`
 
-2. `GET /auth/me`
-- Auth required: yes
-- Roles: admin, student
-- Response 200:
-```json
-{"id":"<uuid>","username":"admin","role":"admin"}
-```
-- Errors:
-  - 401 invalid/missing token
+Admin utility:
+- `GET /admin/ping`
 
-Admin module (implemented demo):
-
-1. `GET /admin/ping`
-- Auth required: yes
-- Roles: admin only
-- Response 200:
-```json
-{"status":"ok","message":"admin pong"}
-```
-- Errors:
-  - 403 admin role required
-  - 401 invalid/missing token
-
-Implemented module and endpoint contracts:
-
-Exams and Questions module (implemented, admin-only):
+Exams and Questions (admin-only):
 - `GET /exams`
 - `POST /exams`
 - `GET /exams/{exam_id}`
@@ -344,128 +337,194 @@ Exams and Questions module (implemented, admin-only):
 - `PUT /exams/{exam_id}/questions/{question_id}`
 - `DELETE /exams/{exam_id}/questions/{question_id}`
 
-Auth and roles:
-- Auth required: yes
-- Allowed role: `admin` only
-- Non-admin response: `403 {"detail":"Admin access required"}`
-- Common not found responses:
-  - `404 {"detail":"Exam not found"}`
-  - `404 {"detail":"Question not found"}`
-- Common validation response:
-  - `400` for invalid input (`time_limit_minutes <= 0`, empty question text)
+Student exam execution:
+- `GET /student/exams`
+- `GET /student/exams/{exam_id}`
+- `POST /attempts/start`
+- `POST /answers/autosave`
+- `POST /answers/submit`
 
-Cascade behavior:
-- `DELETE /exams/{exam_id}` removes related questions via ORM/DB cascade (`Exam.questions` relationship and FK cascade).
+Monitoring:
+- `POST /monitoring/status` (student)
+- `GET ws://<host>/ws/admin/monitor?token=<admin_jwt>` (admin socket)
 
-Planned modules and endpoint contracts:
+Violations:
+- `POST /violations` (student)
+- `GET /violations/attempt/{attempt_id}` (admin)
 
-Attempts (planned):
-- `POST /attempts/start` (student)
-- `POST /attempts/{attempt_id}/submit` (student)
-- `GET /attempts/{attempt_id}` (owner/admin)
-- `GET /attempts` (admin filtered list)
+Still planned:
+- screenshots upload/list endpoints
+- reports endpoints
+- richer attempts list/detail endpoints for admin workflows
 
-Answers (planned):
-- `PUT /attempts/{attempt_id}/answers/{question_id}` (student)
-- `GET /attempts/{attempt_id}/answers` (owner/admin)
+Key validation/authorization behavior:
+- Non-admin on admin endpoints: `403 {"detail":"Admin access required"}`
+- Non-student on student endpoints: `403 {"detail":"Student access required"}`
+- Students cannot act on another student's attempt.
+- Violations require attempt ownership and active `in_progress` status.
+- Autosave/submit reject attempts that are no longer active.
 
-Violations (planned):
-- `POST /attempts/{attempt_id}/violations` (student client)
-- `GET /attempts/{attempt_id}/violations` (admin, owner optional)
+Sample implemented request/response shapes:
 
-Screenshots (planned):
-- `POST /attempts/{attempt_id}/screenshots` (student client)
-- `GET /attempts/{attempt_id}/screenshots` (admin)
-
-Reports (planned):
-- `GET /reports/attempts/{attempt_id}` (admin)
-- `GET /reports/exams/{exam_id}` (admin)
-
-Planned request/response examples:
-
-Exam create request:
+`POST /attempts/start`
 ```json
-{"title":"Midterm - CS101","time_limit_minutes":60}
+{"exam_id":"<uuid>"}
 ```
 
-Exam create response:
+`POST /answers/autosave`
 ```json
-{"id":"<uuid>","title":"Midterm - CS101","time_limit_minutes":60,"created_at":"2026-02-22T11:00:00Z"}
+{
+  "attempt_id":"<uuid>",
+  "answers":[
+    {"question_id":"<uuid>","answer_text":"Draft answer"}
+  ]
+}
 ```
 
-Answer save request:
+`POST /answers/submit`
 ```json
-{"answer_text":"My answer"}
+{
+  "attempt_id":"<uuid>",
+  "answers":[
+    {"question_id":"<uuid>","answer_text":"Final answer"}
+  ]
+}
 ```
 
-Violation create request:
+`POST /violations`
 ```json
-{"type":"focus_lost","details":"Window lost focus for 3.2s"}
+{
+  "attempt_id":"<uuid>",
+  "type":"focus_lost",
+  "details":"Window lost focus during exam"
+}
 ```
 
-Screenshot metadata request:
+`GET /violations/attempt/{attempt_id}`
 ```json
-{"file_path":"attempts/<attempt_id>/2026-02-22T11-10-15Z.png"}
+[
+  {
+    "id":"<uuid>",
+    "attempt_id":"<uuid>",
+    "type":"focus_lost",
+    "details":"Window lost focus during exam",
+    "created_at":"2026-03-18T10:15:00Z"
+  }
+]
 ```
 
 Standard error responses:
-- 400 bad request/domain error
-- 401 unauthorized
-- 403 forbidden
-- 404 not found
-- 422 validation error
-- 500 internal server error
+- `400` domain/validation error
+- `401` unauthorized
+- `403` forbidden
+- `404` not found
+- `422` schema validation error
+- `500` internal server error
 
-WebSocket contract (planned):
-- URL: `ws://<host>/ws/monitor`
-- Auth: JWT (query/header transport to confirm)
-- Event envelope:
+WebSocket contract (implemented):
+- URL: `ws://<host>/ws/admin/monitor?token=<admin_jwt>`
+- Auth: admin JWT in query param
+
+Snapshot message:
 ```json
-{"event":"attempt.updated","ts":"2026-02-22T11:12:00Z","payload":{}}
+{
+  "type":"snapshot",
+  "attempts":[
+    {
+      "attempt_id":"<uuid>",
+      "username":"student1",
+      "exam_id":"<uuid>",
+      "status":"in_progress",
+      "last_event":"autosave",
+      "last_update":"2026-03-18T10:10:00Z",
+      "alert_count":1,
+      "has_alerts":true,
+      "last_violation_type":"focus_lost",
+      "last_violation_at":"2026-03-18T10:09:00Z"
+    }
+  ]
+}
 ```
-- Planned events:
-  - `attempt.started`
-  - `attempt.updated`
-  - `attempt.submitted`
-  - `violation.created`
-  - `screenshot.captured`
-  - `alert.raised`
+
+Monitoring event message:
+```json
+{
+  "type":"event",
+  "data":{
+    "event_type":"in_exam",
+    "timestamp":"2026-03-18T10:10:00Z",
+    "user_id":"<uuid>",
+    "username":"student1",
+    "exam_id":"<uuid>",
+    "attempt_id":"<uuid>",
+    "status":"in_progress",
+    "message":"Student entered exam window"
+  }
+}
+```
+
+Violation alert message:
+```json
+{
+  "type":"violation",
+  "data":{
+    "id":"<uuid>",
+    "attempt_id":"<uuid>",
+    "type":"focus_lost",
+    "details":"Window lost focus during exam",
+    "created_at":"2026-03-18T10:15:00Z",
+    "username":"student1",
+    "exam_id":"<uuid>",
+    "status":"in_progress"
+  }
+}
+```
 
 ## H) Client Apps Behavior
 
 Admin portal (`admin/`):
-- Current behavior in `admin/src/App.tsx`:
-  - username/password login form
-  - stores access token in `localStorage`
-  - fetches `/auth/me` after login
-  - shows logged-in identity
-  - triggers `/admin/ping` check
-- API client in `admin/src/lib/api.ts`:
-  - `setToken/getToken/clearToken`
-  - `authFetch` to attach auth header
+- Login form stores bearer token in `localStorage`.
+- Navigation currently exposes:
+  - `/` for exams management
+  - `/monitoring` for live monitoring
+- Exams UI supports CRUD for exams and questions.
+- Monitoring UI behavior:
+  - connects to admin monitor WebSocket automatically
+  - initializes rows from backend snapshot
+  - handles live `event` and `violation` messages
+  - shows connection indicator and last message timestamp
+  - highlights alerted rows
+  - shows alert count and latest violation type
+  - supports `Show only attempts with alerts`
+  - shows lightweight toast notifications on new violations
+  - loads per-attempt violations panel via REST
 
-Planned admin pages/routes:
-- `/login`
-- `/dashboard`
-- `/exams` (will consume implemented backend FR-07 endpoints)
-- `/monitor/:attemptId`
-- `/reports`
-- To confirm: final route names and component organization.
-
-Student client (`client/`, planned):
-- Planned screens:
-  - login
-  - exam start
-  - active attempt
-  - submit confirmation
-- Planned services:
-  - `LockdownManager`
-  - `ScreenshotService`
+Student client (`client/`):
+- Current screens:
+  - login window
+  - active exam window
+- Current services:
+  - `AuthManager`
+  - `NetworkClient`
+  - `QuizManager`
+  - `MonitoringClient`
   - `ViolationService`
-  - `OfflineQueue`
-- Service lifecycle:
-  - start when attempt starts
-  - stop on submission/termination
+  - local cache storage
+- Current runtime behavior:
+  - login with username/password + exam UUID
+  - load exam and start or reuse active attempt
+  - cache answers locally on change
+  - autosave periodically and manually
+  - submit answers
+  - send monitoring events: `connected`, `in_exam`, `autosave`, `submitted`, `disconnected`, heartbeat
+  - send best-effort violation events:
+    - `focus_lost` on exam window deactivation
+    - `manual_flag` from dev-only debug button
+  - throttle repeated `focus_lost` reports with a 5-second cooldown
+- Not yet implemented:
+  - full lockdown
+  - screenshot capture
+  - advanced OS-level monitoring
 
 ## I) Environment & Configuration
 
@@ -476,36 +535,28 @@ Server env vars (`server/.env`, `server/app/core/config.py`):
 - `PORT`
 - `LOG_LEVEL`
 - `DATABASE_URL`
-- `DATABASE_URL_TEST` (optional)
+- `DATABASE_URL_TEST`
 - `JWT_SECRET_KEY`
 - `JWT_ALGORITHM`
 - `JWT_EXPIRES_MINUTES`
 
-Safe example:
-```env
-APP_NAME=ExamShield
-ENV=dev
-HOST=0.0.0.0
-PORT=8000
-LOG_LEVEL=info
-DATABASE_URL=postgresql+psycopg://examshield:examshield@localhost:5432/examshield
-DATABASE_URL_TEST=postgresql+psycopg://examshield:examshield@localhost:5432/examshield_test
-JWT_SECRET_KEY=replace-with-strong-secret
-JWT_ALGORITHM=HS256
-JWT_EXPIRES_MINUTES=60
-```
-
 Admin env vars (`admin/.env`):
 - `VITE_API_BASE_URL`
 
-Example:
+Client env vars:
+- `EXAMSHIELD_API_BASE_URL`
+- `EXAMSHIELD_DEV_MODE`
+
+Example values:
 ```env
 VITE_API_BASE_URL=http://127.0.0.1:8000
+EXAMSHIELD_API_BASE_URL=http://127.0.0.1:8000
+EXAMSHIELD_DEV_MODE=1
 ```
 
 Dev vs prod:
-- Dev: local Postgres via `server/docker-compose.yml`, localhost CORS.
-- Prod: managed DB, strict CORS, HTTPS, strong key management and rotation.
+- Dev: local Postgres via `server/docker-compose.yml`, localhost API URLs, Vite dev server, PyQt client against local backend.
+- Prod: managed DB, HTTPS, strict CORS, stronger secret management, and packaging/distribution for the client.
 
 ## J) Development Workflow
 
@@ -530,40 +581,39 @@ npm install
 npm run dev
 ```
 
-Tests:
+Client:
+```bash
+cd client
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python -m app.main
+```
+
+Server tests:
 ```bash
 cd server
 pytest
 ```
 
-Notes:
-- Auth tests require PostgreSQL reachable and migration applied.
-- Milestone 2 tests:
-  - `tests/test_exams_crud.py` covers admin exam CRUD, student 403, and exam 404 behavior.
-  - `tests/test_questions_crud.py` covers admin question CRUD, student 403, and exam/question 404 behavior.
+Targeted test notes:
+- `tests/test_exams_crud.py` and `tests/test_questions_crud.py`: Milestone 2
+- `tests/test_attempts_flow.py` and `tests/test_student_exam_execution.py`: Milestone 3
+- `tests/test_violations.py`: Milestone 5 backend violations + WebSocket smoke coverage
+
+Formatting/lint:
+- Python: `black`, `ruff`
+- Admin frontend: `npx tsc --noEmit`, `npm run build`
 
 Coding conventions:
 - Python:
-  - format with `black`
-  - lint with `ruff`
-  - naming: snake_case modules/functions, PascalCase classes
-  - layering: routers call services; services interact with models/db
+  - snake_case modules/functions
+  - PascalCase classes
+  - routers call services; services interact with models/db
 - TypeScript/React:
-  - API logic in `admin/src/lib/api.ts`
-  - components/pages split as app grows
-  - naming: PascalCase for components, camelCase for functions
-- Folder rule for new backend module:
-  - `server/app/api/routers/<module>.py`
-  - `server/app/schemas/<module>.py`
-  - `server/app/services/<module>_service.py`
-  - corresponding tests in `server/tests/`
-
-Git workflow:
-- `main`: stable branch
-- `dev`: integration branch
-- `feature/<name>` from `dev`
-- merge flow: feature -> dev -> main milestone release
-- To confirm: minimum PR approvals and branch protection policy.
+  - shared API logic in `admin/src/lib`
+  - page-level UI in `admin/src/pages`
+  - PascalCase components, camelCase helpers
 
 ## K) "How to Reference This Doc" Section
 

@@ -286,50 +286,52 @@ function LiveMonitoringPage() {
           {rows.length === 0 ? (
             <p>{showOnlyAlerts ? "No attempts with alerts." : "No active attempts yet."}</p>
           ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Username</th>
-                  <th>Exam ID</th>
-                  <th>Attempt ID</th>
-                  <th>Status</th>
-                  <th>Alerts</th>
-                  <th>Latest Violation</th>
-                  <th>Last Update</th>
-                  <th>Details</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr
-                    key={row.attempt_id}
-                    className={[
-                      row.has_alerts ? "attempt-row-alert" : "",
-                      selectedAttemptId === row.attempt_id ? "attempt-row-selected" : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                  >
-                    <td>{row.username}</td>
-                    <td className="mono">{row.exam_id}</td>
-                    <td className="mono">{row.attempt_id}</td>
-                    <td>{row.status}</td>
-                    <td>
-                      <span className={row.has_alerts ? "alert-badge" : "neutral-badge"}>
-                        {row.alert_count}
-                      </span>
-                    </td>
-                    <td>{row.last_violation_type ?? "-"}</td>
-                    <td>{formatTimestamp(row.last_violation_at ?? row.last_update)}</td>
-                    <td>
-                      <button type="button" onClick={() => setSelectedAttemptId(row.attempt_id)}>
-                        View Violations
-                      </button>
-                    </td>
+            <div className="table-scroll">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>Exam ID</th>
+                    <th>Attempt ID</th>
+                    <th>Status</th>
+                    <th>Alerts</th>
+                    <th>Latest Violation</th>
+                    <th>Last Update</th>
+                    <th>Details</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr
+                      key={row.attempt_id}
+                      className={[
+                        row.has_alerts ? "attempt-row-alert" : "",
+                        selectedAttemptId === row.attempt_id ? "attempt-row-selected" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      <td>{row.username}</td>
+                      <td className="mono">{row.exam_id}</td>
+                      <td className="mono">{row.attempt_id}</td>
+                      <td>{row.status}</td>
+                      <td>
+                        <span className={row.has_alerts ? "alert-badge" : "neutral-badge"}>
+                          {row.alert_count}
+                        </span>
+                      </td>
+                      <td>{row.last_violation_type ?? "-"}</td>
+                      <td>{formatTimestamp(row.last_violation_at ?? row.last_update)}</td>
+                      <td>
+                        <button type="button" onClick={() => setSelectedAttemptId(row.attempt_id)}>
+                          View Violations
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 

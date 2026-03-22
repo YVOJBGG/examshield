@@ -189,13 +189,18 @@ pre {
 
 .monitoring-layout {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  grid-template-columns: 1fr;
   gap: 1rem;
   align-items: start;
 }
 
 .monitoring-table-panel {
   min-width: 0;
+  overflow: hidden;
+}
+
+.table-scroll {
+  overflow-x: auto;
 }
 
 .monitoring-detail-panel {
@@ -281,10 +286,6 @@ pre {
 }
 
 @media (max-width: 900px) {
-  .monitoring-layout {
-    grid-template-columns: 1fr;
-  }
-
   .toast-stack {
     left: 1rem;
     right: 1rem;
