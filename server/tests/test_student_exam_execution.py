@@ -137,7 +137,7 @@ def test_student_routes_forbid_admin_token(client: TestClient, auth_tokens: dict
     admin_headers = _auth_header(auth_tokens["admin"])
     random_id = str(uuid.uuid4())
 
-    start_response = client.post("/attempts/start", headers=admin_headers, json={"exam_id": random_id})
+    start_response = client.post("/attempts/start", headers=admin_headers, json={"exam_code": "123456"})
     assert start_response.status_code == 403
 
     exam_response = client.get(f"/student/exams/{random_id}", headers=admin_headers)

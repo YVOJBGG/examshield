@@ -239,6 +239,11 @@ function LiveMonitoringPage() {
   );
 
   const selectedRow = selectedAttemptId ? attemptMap[selectedAttemptId] ?? null : null;
+  const totalAttempts = rows.length;
+  const alertRows = rows.filter((row) => row.has_alerts).length;
+  const totalAlerts = rows.reduce((sum, row) => sum + row.alert_count, 0);
+  const connectionLabel =
+    connection === "connected" ? "Connected" : connection === "connecting" ? "Connecting" : "Disconnected";
 
   if (!hasToken) {
     return (
@@ -250,8 +255,17 @@ function LiveMonitoringPage() {
   }
 
   return (
-    <section className="panel">
-      <h2>Live Monitoring</h2>
+    <section className="page-section">
+      <div className="page-header">
+        <div>
+          <span className="eyebrow">Monitoring</span>
+          <h2>Live exam activity</h2>
+          <p className="page-intro">
+            Track active attempts, surface alert activity quickly, and inspect per-attempt
+            violations without losing sight of the main monitoring feed.
+          </p>
+        </div>
+      </div>
 
       <div className="toast-stack" aria-live="polite">
         {toasts.map((toast) => (
@@ -261,30 +275,58 @@ function LiveMonitoringPage() {
         ))}
       </div>
 
-      <div className="monitoring-meta">
-        <p>
-          Connection: <strong>{connection === "connected" ? "Connected" : connection === "connecting" ? "Connecting" : "Disconnected"}</strong>
-        </p>
-        <p>
-          Last message: <strong>{formatTimestamp(lastMessageAt)}</strong>
-        </p>
+      <div className="stats-grid">
+        <article className="stat-card">
+          <span className="stat-label">Connection</span>
+          <strong>{connectionLabel}</strong>
+          <p>WebSocket status for the live monitoring stream.</p>
+        </article>
+        <article className="stat-card">
+          <span className="stat-label">Tracked attempts</span>
+          <strong>{totalAttempts}</strong>
+          <p>Attempts currently visible in this monitoring session.</p>
+        </article>
+        <article className="stat-card">
+          <span className="stat-label">Rows with alerts</span>
+          <strong>{alertRows}</strong>
+          <p>Attempt rows currently flagged with one or more violations.</p>
+        </article>
+        <article className="stat-card">
+          <span className="stat-label">Alert count</span>
+          <strong>{totalAlerts}</strong>
+          <p>Total violation count accumulated across visible attempts.</p>
+        </article>
       </div>
 
-      <label className="monitoring-filter">
-        <input
-          type="checkbox"
-          checked={showOnlyAlerts}
-          onChange={(event) => setShowOnlyAlerts(event.target.checked)}
-        />
-        Show only attempts with alerts
-      </label>
-
-      {socketError && <p className="error">Error: {socketError}</p>}
-
       <div className="monitoring-layout">
-        <div className="monitoring-table-panel">
+        <section className="panel monitoring-table-panel">
+          <div className="section-heading">
+            <div>
+              <h3>Attempts overview</h3>
+              <p>Live state for currently tracked attempts, including their latest monitoring signal.</p>
+            </div>
+            <div className="monitoring-toolbar">
+              <div className="status-summary">
+                <span className={`status-dot ${connection}`} />
+                <strong>{connectionLabel}</strong>
+              </div>
+              <span className="status-pill">Last message {formatTimestamp(lastMessageAt)}</span>
+            </div>
+          </div>
+
+          <label className="monitoring-filter">
+            <input
+              type="checkbox"
+              checked={showOnlyAlerts}
+              onChange={(event) => setShowOnlyAlerts(event.target.checked)}
+            />
+            Show only attempts with alerts
+          </label>
+
+          {socketError && <p className="error">Error: {socketError}</p>}
+
           {rows.length === 0 ? (
-            <p>{showOnlyAlerts ? "No attempts with alerts." : "No active attempts yet."}</p>
+            <p className="state-text">{showOnlyAlerts ? "No attempts with alerts." : "No active attempts yet."}</p>
           ) : (
             <div className="table-scroll">
               <table className="table">
@@ -311,10 +353,14 @@ function LiveMonitoringPage() {
                         .filter(Boolean)
                         .join(" ")}
                     >
-                      <td>{row.username}</td>
+                      <td>
+                        <strong>{row.username}</strong>
+                      </td>
                       <td className="mono">{row.exam_id}</td>
                       <td className="mono">{row.attempt_id}</td>
-                      <td>{row.status}</td>
+                      <td>
+                        <span className="status-pill">{row.status}</span>
+                      </td>
                       <td>
                         <span className={row.has_alerts ? "alert-badge" : "neutral-badge"}>
                           {row.alert_count}
@@ -323,7 +369,7 @@ function LiveMonitoringPage() {
                       <td>{row.last_violation_type ?? "-"}</td>
                       <td>{formatTimestamp(row.last_violation_at ?? row.last_update)}</td>
                       <td>
-                        <button type="button" onClick={() => setSelectedAttemptId(row.attempt_id)}>
+                        <button type="button" className="secondary-button" onClick={() => setSelectedAttemptId(row.attempt_id)}>
                           View Violations
                         </button>
                       </td>
@@ -333,25 +379,43 @@ function LiveMonitoringPage() {
               </table>
             </div>
           )}
-        </div>
+        </section>
 
-        <aside className="monitoring-detail-panel">
-          <h3>Violations</h3>
+        <aside className="panel monitoring-detail-panel">
+          <div className="section-heading">
+            <div>
+              <h3>Violation details</h3>
+              <p>Selected attempt history with timestamps and event descriptions.</p>
+            </div>
+          </div>
           {!selectedRow ? (
-            <p>Select an attempt to inspect its violation history.</p>
+            <p className="state-text">Select an attempt to inspect its violation history.</p>
           ) : (
             <>
-              <p>
-                <strong>{selectedRow.username}</strong>
-              </p>
-              <p className="mono">{selectedRow.attempt_id}</p>
-              <p>
-                Alerts: <strong>{selectedRow.alert_count}</strong>
-              </p>
-              {violationsLoading && <p>Loading violations...</p>}
+              <div className="review-meta-card">
+                <div className="review-meta">
+                  <p>
+                    <span>Student</span>
+                    <strong>{selectedRow.username}</strong>
+                  </p>
+                  <p>
+                    <span>Attempt</span>
+                    <strong className="mono">{selectedRow.attempt_id}</strong>
+                  </p>
+                  <p>
+                    <span>Status</span>
+                    <strong>{selectedRow.status}</strong>
+                  </p>
+                  <p>
+                    <span>Alerts</span>
+                    <strong>{selectedRow.alert_count}</strong>
+                  </p>
+                </div>
+              </div>
+              {violationsLoading && <p className="state-text">Loading violations...</p>}
               {violationsError && <p className="error">Error: {violationsError}</p>}
               {!violationsLoading && !violationsError && violations.length === 0 && (
-                <p>No violations recorded for this attempt.</p>
+                <p className="state-text">No violations recorded for this attempt.</p>
               )}
               {!violationsLoading && !violationsError && violations.length > 0 && (
                 <div className="violation-list">

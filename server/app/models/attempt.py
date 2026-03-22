@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, func
+from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -20,9 +20,17 @@ class Attempt(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String(30), nullable=False, server_default="in_progress")
+    score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    graded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    graded_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
-    user = relationship("User", back_populates="attempts")
+    user = relationship("User", back_populates="attempts", foreign_keys=[user_id])
     exam = relationship("Exam", back_populates="attempts")
+    graded_by = relationship("User", back_populates="graded_attempts", foreign_keys=[graded_by_user_id])
     answers = relationship("Answer", back_populates="attempt", cascade="all, delete-orphan")
     violations = relationship("Violation", back_populates="attempt", cascade="all, delete-orphan")
     screenshots = relationship("Screenshot", back_populates="attempt", cascade="all, delete-orphan")

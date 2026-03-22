@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { Link, Navigate, Route, Routes } from "react-router-dom";
+import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 
 import { adminPing, clearToken, getMe, getToken, login, setToken, type MeResponse } from "./lib/api";
 import ExamEditorPage from "./pages/ExamEditorPage";
 import ExamsListPage from "./pages/ExamsListPage";
+import ExamSubmissionsPage from "./pages/ExamSubmissionsPage";
 import LiveMonitoringPage from "./pages/LiveMonitoringPage";
 
 function App() {
@@ -75,47 +76,74 @@ function App() {
   }
 
   return (
-    <main>
-      <h1>ExamShield Admin</h1>
+    <main className="app-shell">
+      {!me ? (
+        <section className="auth-shell">
+          <div className="auth-hero">
+            <span className="eyebrow">ExamShield Admin</span>
+            <h1>Secure exam operations in one focused workspace.</h1>
+            <p>
+              Manage exams, monitor live activity, and review submitted attempts from a single
+              professional dashboard.
+            </p>
+          </div>
 
-      {!me && (
-        <form className="login-form" onSubmit={onLogin}>
-          <label htmlFor="username">Username</label>
-          <input
-            id="username"
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            placeholder="admin"
-            required
-          />
+          <form className="login-form" onSubmit={onLogin}>
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">Sign In</span>
+                <h2>Admin access</h2>
+              </div>
+            </div>
 
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="********"
-            required
-          />
+            <label htmlFor="username">Username</label>
+            <input
+              id="username"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              placeholder="admin"
+              required
+            />
 
-          <button type="submit" disabled={submitting}>
-            {submitting ? "Logging in..." : "Login"}
-          </button>
-        </form>
-      )}
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="********"
+              required
+            />
 
-      {error && <p className="error">Error: {error}</p>}
+            <button type="submit" disabled={submitting}>
+              {submitting ? "Logging in..." : "Login"}
+            </button>
 
-      {me && (
+            {error && <p className="error">Error: {error}</p>}
+          </form>
+        </section>
+      ) : (
         <>
-          <section className="panel">
-            <div className="toolbar">
-              <p>
-                Logged in as <strong>{me.username}</strong> ({me.role})
+          <header className="topbar">
+            <div>
+              <span className="eyebrow">ExamShield Admin</span>
+              <h1>Operations Dashboard</h1>
+              <p className="page-intro">
+                Manage assessments, monitor live attempts, and review submissions with consistent
+                admin workflows.
               </p>
+            </div>
+
+            <div className="topbar-actions">
+              <div className="profile-chip">
+                <span className="profile-avatar">{me.username.slice(0, 1).toUpperCase()}</span>
+                <div>
+                  <strong>{me.username}</strong>
+                  <p>{me.role}</p>
+                </div>
+              </div>
               <div className="actions">
-                <button type="button" onClick={() => void onAdminPing()}>
+                <button type="button" className="secondary-button" onClick={() => void onAdminPing()}>
                   Admin Ping
                 </button>
                 <button type="button" onClick={onLogout}>
@@ -123,19 +151,38 @@ function App() {
                 </button>
               </div>
             </div>
-            {pingResult && <pre>{pingResult}</pre>}
-          </section>
-          <nav className="panel nav-links">
-            <Link to="/">Exams</Link>
-            <Link to="/monitoring">Live Monitoring</Link>
+          </header>
+
+          <nav className="nav-shell">
+            <div className="nav-links">
+              <NavLink to="/" end className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")}>
+                Exams
+              </NavLink>
+              <NavLink
+                to="/monitoring"
+                className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")}
+              >
+                Live Monitoring
+              </NavLink>
+            </div>
+            <span className="status-pill">Admin workspace</span>
           </nav>
 
-          <Routes>
-            <Route path="/" element={<ExamsListPage onAuthError={handleAuthError} />} />
-            <Route path="/monitoring" element={<LiveMonitoringPage />} />
-            <Route path="/exams/:examId" element={<ExamEditorPage onAuthError={handleAuthError} />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          {error && <p className="error banner-error">Error: {error}</p>}
+          {pingResult && <pre>{pingResult}</pre>}
+
+          <div className="page-stack">
+            <Routes>
+              <Route path="/" element={<ExamsListPage onAuthError={handleAuthError} />} />
+              <Route path="/monitoring" element={<LiveMonitoringPage />} />
+              <Route path="/exams/:examId" element={<ExamEditorPage onAuthError={handleAuthError} />} />
+              <Route
+                path="/exams/:examId/submissions"
+                element={<ExamSubmissionsPage onAuthError={handleAuthError} />}
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </div>
         </>
       )}
     </main>

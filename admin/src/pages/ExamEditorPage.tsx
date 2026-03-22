@@ -183,68 +183,121 @@ function ExamEditorPage({ onAuthError }: Props) {
   }
 
   return (
-    <section className="panel">
-      <div className="toolbar">
-        <Link to="/">Back to exams</Link>
-        <button type="button" className="danger" onClick={() => void onDeleteExam()}>
-          Delete Exam
-        </button>
+    <section className="page-section">
+      <div className="page-header">
+        <div>
+          <Link to="/" className="back-link">
+            Back to exams
+          </Link>
+          <span className="eyebrow">Exam Editor</span>
+          <h2>{exam.title}</h2>
+          <p className="page-intro">
+            Update exam details, manage question content, and move into submission review when
+            grading is needed.
+          </p>
+        </div>
+        <div className="actions">
+          <button type="button" className="secondary-button" onClick={() => navigate(`/exams/${exam.id}/submissions`)}>
+            View Submissions
+          </button>
+          <button type="button" className="danger" onClick={() => void onDeleteExam()}>
+            Delete Exam
+          </button>
+        </div>
       </div>
 
-      <h2>Exam Editor</h2>
+      <div className="stats-grid">
+        <article className="stat-card">
+          <span className="stat-label">Exam ID</span>
+          <strong className="mono">{exam.exam_code}</strong>
+          <p>Teacher-facing code students use to access the exam.</p>
+        </article>
+        <article className="stat-card">
+          <span className="stat-label">Question count</span>
+          <strong>{questions.length}</strong>
+          <p>Questions currently available in this assessment.</p>
+        </article>
+        <article className="stat-card">
+          <span className="stat-label">Time limit</span>
+          <strong>{exam.time_limit_minutes} min</strong>
+          <p>Student countdown duration from attempt start.</p>
+        </article>
+      </div>
+
       {error && <p className="error">Error: {error}</p>}
 
-      <form className="inline-form" onSubmit={onSaveExam}>
-        <input
-          value={exam.title}
-          onChange={(event) => setExam({ ...exam, title: event.target.value })}
-          placeholder="Exam title"
-          required
-        />
-        <input
-          type="number"
-          min={1}
-          value={exam.time_limit_minutes}
-          onChange={(event) => setExam({ ...exam, time_limit_minutes: Number(event.target.value) })}
-          required
-        />
-        <button type="submit" disabled={savingExam}>
-          {savingExam ? "Saving..." : "Save Exam"}
-        </button>
-      </form>
-
-      <h3>Questions</h3>
-      <form className="inline-form" onSubmit={onAddQuestion}>
-        <input
-          value={newQuestionText}
-          onChange={(event) => setNewQuestionText(event.target.value)}
-          placeholder="New question text"
-          required
-        />
-        <button type="submit">Add Question</button>
-      </form>
-
-      <div className="questions">
-        {questions.map((question) => (
-          <div key={question.id} className="question-item">
-            <textarea
-              value={questionDrafts[question.id] ?? ""}
-              onChange={(event) =>
-                setQuestionDrafts((prev) => ({ ...prev, [question.id]: event.target.value }))
-              }
-            />
-            <div className="actions">
-              <button type="button" onClick={() => void onSaveQuestion(question.id)}>
-                Save
-              </button>
-              <button type="button" className="danger" onClick={() => void onDeleteQuestion(question.id)}>
-                Delete
-              </button>
-            </div>
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <h3>Exam settings</h3>
+            <p>Adjust the title and time limit without leaving the editor.</p>
           </div>
-        ))}
-        {questions.length === 0 && <p>No questions yet.</p>}
-      </div>
+        </div>
+
+        <form className="inline-form" onSubmit={onSaveExam}>
+          <input
+            value={exam.title}
+            onChange={(event) => setExam({ ...exam, title: event.target.value })}
+            placeholder="Exam title"
+            required
+          />
+          <input
+            type="number"
+            min={1}
+            value={exam.time_limit_minutes}
+            onChange={(event) => setExam({ ...exam, time_limit_minutes: Number(event.target.value) })}
+            required
+          />
+          <button type="submit" disabled={savingExam}>
+            {savingExam ? "Saving..." : "Save Exam"}
+          </button>
+        </form>
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <h3>Question bank</h3>
+            <p>Add new prompts and keep existing questions tidy and readable.</p>
+          </div>
+        </div>
+
+        <form className="inline-form" onSubmit={onAddQuestion}>
+          <input
+            value={newQuestionText}
+            onChange={(event) => setNewQuestionText(event.target.value)}
+            placeholder="New question text"
+            required
+          />
+          <button type="submit">Add Question</button>
+        </form>
+
+        <div className="questions">
+          {questions.map((question, index) => (
+            <div key={question.id} className="question-item">
+              <div className="question-item-header">
+                <span className="status-pill">Question {index + 1}</span>
+                <span className="mono subtle-text">{question.id}</span>
+              </div>
+              <textarea
+                value={questionDrafts[question.id] ?? ""}
+                onChange={(event) =>
+                  setQuestionDrafts((prev) => ({ ...prev, [question.id]: event.target.value }))
+                }
+              />
+              <div className="actions">
+                <button type="button" onClick={() => void onSaveQuestion(question.id)}>
+                  Save
+                </button>
+                <button type="button" className="danger" onClick={() => void onDeleteQuestion(question.id)}>
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+          {questions.length === 0 && <p className="state-text">No questions yet.</p>}
+        </div>
+      </section>
     </section>
   );
 }

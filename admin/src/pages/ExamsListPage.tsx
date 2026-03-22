@@ -76,63 +76,111 @@ function ExamsListPage({ onAuthError }: Props) {
   }
 
   return (
-    <section className="panel">
-      <h2>Exams</h2>
+    <section className="page-section">
+      <div className="page-header">
+        <div>
+          <span className="eyebrow">Exam Management</span>
+          <h2>Assessments</h2>
+          <p className="page-intro">
+            Create new exams, share their teacher-facing Exam IDs, and jump into editing or review
+            workflows.
+          </p>
+        </div>
+      </div>
 
-      <form className="inline-form" onSubmit={onCreateExam}>
-        <input
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          placeholder="Exam title"
-          required
-        />
-        <input
-          type="number"
-          min={1}
-          value={timeLimit}
-          onChange={(event) => setTimeLimit(Number(event.target.value))}
-          required
-        />
-        <button type="submit" disabled={submitting}>
-          {submitting ? "Creating..." : "Create New Exam"}
-        </button>
-      </form>
+      <div className="stats-grid">
+        <article className="stat-card">
+          <span className="stat-label">Total exams</span>
+          <strong>{exams.length}</strong>
+          <p>All configured assessments available to students.</p>
+        </article>
+        <article className="stat-card">
+          <span className="stat-label">Default timer</span>
+          <strong>{timeLimit} min</strong>
+          <p>New exams start with this duration unless you adjust it before saving.</p>
+        </article>
+      </div>
 
-      {loading && <p>Loading exams...</p>}
-      {error && <p className="error">Error: {error}</p>}
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <h3>Create exam</h3>
+            <p>Set a title and time limit. The server will generate a shareable Exam ID.</p>
+          </div>
+        </div>
 
-      {!loading && (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Time Limit</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {exams.map((exam) => (
-              <tr key={exam.id}>
-                <td>{exam.title}</td>
-                <td>{exam.time_limit_minutes} min</td>
-                <td className="actions">
-                  <button type="button" onClick={() => navigate(`/exams/${exam.id}`)}>
-                    Edit
-                  </button>
-                  <button type="button" className="danger" onClick={() => void onDeleteExam(exam.id)}>
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {exams.length === 0 && (
-              <tr>
-                <td colSpan={3}>No exams yet.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      )}
+        <form className="inline-form" onSubmit={onCreateExam}>
+          <input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Exam title"
+            required
+          />
+          <input
+            type="number"
+            min={1}
+            value={timeLimit}
+            onChange={(event) => setTimeLimit(Number(event.target.value))}
+            required
+          />
+          <button type="submit" disabled={submitting}>
+            {submitting ? "Creating..." : "Create New Exam"}
+          </button>
+        </form>
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <h3>Existing exams</h3>
+            <p>Open an exam to edit questions or review submissions.</p>
+          </div>
+        </div>
+
+        {loading && <p className="state-text">Loading exams...</p>}
+        {error && <p className="error">Error: {error}</p>}
+
+        {!loading && (
+          <div className="table-scroll">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Exam ID</th>
+                  <th>Title</th>
+                  <th>Time Limit</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {exams.map((exam) => (
+                  <tr key={exam.id}>
+                    <td>
+                      <span className="mono id-chip">{exam.exam_code}</span>
+                    </td>
+                    <td>
+                      <strong>{exam.title}</strong>
+                    </td>
+                    <td>{exam.time_limit_minutes} min</td>
+                    <td className="actions">
+                      <button type="button" className="secondary-button" onClick={() => navigate(`/exams/${exam.id}`)}>
+                        Open
+                      </button>
+                      <button type="button" className="danger" onClick={() => void onDeleteExam(exam.id)}>
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {exams.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="empty-cell">No exams yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </section>
   );
 }

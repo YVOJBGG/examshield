@@ -18,6 +18,15 @@ from app.schemas.monitoring import (
     ViolationEnvelope,
 )
 from app.schemas.question import QuestionCreate, QuestionOut, QuestionUpdate
+from app.schemas.review import (
+    AttemptReviewAnswerItem,
+    AttemptReviewDetail,
+    AttemptReviewExam,
+    AttemptReviewListItem,
+    AttemptReviewStudent,
+    AttemptScoreOut,
+    AttemptScoreUpdate,
+)
 from app.schemas.student_exam import StudentExamListItem, StudentExamOut, StudentQuestionOut
 from app.schemas.violation import ViolationCreate, ViolationListItem, ViolationOut
 
@@ -46,6 +55,13 @@ __all__ = [
     "QuestionCreate",
     "QuestionUpdate",
     "QuestionOut",
+    "AttemptReviewListItem",
+    "AttemptReviewStudent",
+    "AttemptReviewExam",
+    "AttemptReviewAnswerItem",
+    "AttemptReviewDetail",
+    "AttemptScoreUpdate",
+    "AttemptScoreOut",
     "ViolationCreate",
     "ViolationOut",
     "ViolationListItem",

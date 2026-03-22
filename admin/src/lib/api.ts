@@ -23,6 +23,7 @@ export type MeResponse = {
 
 export type Exam = {
   id: string;
+  exam_code: string;
   title: string;
   time_limit_minutes: number;
   created_at: string;
@@ -54,6 +55,48 @@ export type ViolationListItem = {
   type: string;
   details?: string | null;
   created_at: string;
+};
+
+export type ExamAttemptListItem = {
+  attempt_id: string;
+  username: string;
+  status: string;
+  started_at: string;
+  submitted_at?: string | null;
+  score?: number | null;
+};
+
+export type AttemptReviewAnswer = {
+  question_id: string;
+  question_text: string;
+  answer_text?: string | null;
+};
+
+export type AttemptReviewDetail = {
+  attempt_id: string;
+  status: string;
+  started_at: string;
+  submitted_at?: string | null;
+  score?: number | null;
+  graded_at?: string | null;
+  student: {
+    id: string;
+    username: string;
+  };
+  exam: {
+    id: string;
+    exam_code: string;
+    title: string;
+  };
+  answers: AttemptReviewAnswer[];
+};
+
+export type AttemptScoreOut = {
+  id: string;
+  status: string;
+  submitted_at?: string | null;
+  score?: number | null;
+  graded_at?: string | null;
 };
 
 export function setToken(token: string): void {
@@ -238,4 +281,32 @@ export async function listAttemptViolations(attemptId: string): Promise<Violatio
     throw new ApiError(response.status, await readErrorMessage(response, "Could not load violations"));
   }
   return parseJson<ViolationListItem[]>(response);
+}
+
+export async function listExamAttempts(examId: string): Promise<ExamAttemptListItem[]> {
+  const response = await authFetch(`/admin/exams/${examId}/attempts`);
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not load submissions"));
+  }
+  return parseJson<ExamAttemptListItem[]>(response);
+}
+
+export async function getAttemptReview(attemptId: string): Promise<AttemptReviewDetail> {
+  const response = await authFetch(`/admin/attempts/${attemptId}`);
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not load attempt review"));
+  }
+  return parseJson<AttemptReviewDetail>(response);
+}
+
+export async function saveAttemptScore(attemptId: string, score: number): Promise<AttemptScoreOut> {
+  const response = await authFetch(`/admin/attempts/${attemptId}/score`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ score }),
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not save score"));
+  }
+  return parseJson<AttemptScoreOut>(response);
 }

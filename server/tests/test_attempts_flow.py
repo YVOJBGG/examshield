@@ -282,7 +282,7 @@ def test_repeated_autosave_updates_existing_answer_row(
 ) -> None:
     admin_token = auth_tokens["admin"]
     student_token = auth_tokens["student"]
-    exam_id, question_id = _create_exam_with_question(client, admin_token)
+    exam_id, exam_code, question_id = _create_exam_with_question(client, admin_token)
 
     try:
         start_response = client.post(

@@ -18,4 +18,14 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(20), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    attempts = relationship("Attempt", back_populates="user", cascade="all, delete-orphan")
+    attempts = relationship(
+        "Attempt",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="Attempt.user_id",
+    )
+    graded_attempts = relationship(
+        "Attempt",
+        back_populates="graded_by",
+        foreign_keys="Attempt.graded_by_user_id",
+    )
