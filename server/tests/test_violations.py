@@ -20,14 +20,15 @@ def _login(client: TestClient, username: str, password: str) -> str:
     return response.json()["access_token"]
 
 
-def _create_exam_with_question(client: TestClient, admin_token: str) -> str:
+def _create_exam_with_question(client: TestClient, admin_token: str) -> tuple[str, str]:
     response = client.post(
         "/exams",
         headers=_auth_header(admin_token),
         json={"title": f"M5 Violations {uuid.uuid4()}", "time_limit_minutes": 50},
     )
     assert response.status_code == 201
-    return response.json()["id"]
+    payload = response.json()
+    return payload["id"], payload["exam_code"]
 
 
 def _ensure_student_user(username: str, password: str) -> None:
@@ -50,13 +51,13 @@ def test_student_can_create_violation_for_own_active_attempt(
 ) -> None:
     admin_token = auth_tokens["admin"]
     student_token = auth_tokens["student"]
-    exam_id = _create_exam_with_question(client, admin_token)
+    exam_id, exam_code = _create_exam_with_question(client, admin_token)
 
     try:
         start_response = client.post(
             "/attempts/start",
             headers=_auth_header(student_token),
-            json={"exam_id": exam_id},
+            json={"exam_code": exam_code},
         )
         assert start_response.status_code == 200
         attempt_id = start_response.json()["id"]
@@ -93,13 +94,13 @@ def test_student_cannot_create_violation_for_another_students_attempt(
     other_username = f"student_m5_{uuid.uuid4().hex[:8]}"
     _ensure_student_user(other_username, "student123")
     other_token = _login(client, other_username, "student123")
-    exam_id = _create_exam_with_question(client, admin_token)
+    exam_id, exam_code = _create_exam_with_question(client, admin_token)
 
     try:
         start_response = client.post(
             "/attempts/start",
             headers=_auth_header(owner_token),
-            json={"exam_id": exam_id},
+            json={"exam_code": exam_code},
         )
         assert start_response.status_code == 200
         attempt_id = start_response.json()["id"]
@@ -119,13 +120,13 @@ def test_cannot_create_violation_for_submitted_attempt(
 ) -> None:
     admin_token = auth_tokens["admin"]
     student_token = auth_tokens["student"]
-    exam_id = _create_exam_with_question(client, admin_token)
+    exam_id, exam_code = _create_exam_with_question(client, admin_token)
 
     try:
         start_response = client.post(
             "/attempts/start",
             headers=_auth_header(student_token),
-            json={"exam_id": exam_id},
+            json={"exam_code": exam_code},
         )
         assert start_response.status_code == 200
         attempt_id = start_response.json()["id"]
@@ -149,13 +150,13 @@ def test_cannot_create_violation_for_submitted_attempt(
 def test_admin_can_list_attempt_violations(client: TestClient, auth_tokens: dict[str, str]) -> None:
     admin_token = auth_tokens["admin"]
     student_token = auth_tokens["student"]
-    exam_id = _create_exam_with_question(client, admin_token)
+    exam_id, exam_code = _create_exam_with_question(client, admin_token)
 
     try:
         start_response = client.post(
             "/attempts/start",
             headers=_auth_header(student_token),
-            json={"exam_id": exam_id},
+            json={"exam_code": exam_code},
         )
         assert start_response.status_code == 200
         attempt_id = start_response.json()["id"]
@@ -191,13 +192,13 @@ def test_violation_broadcast_updates_snapshot_and_pushes_admin_socket(
 ) -> None:
     admin_token = auth_tokens["admin"]
     student_token = auth_tokens["student"]
-    exam_id = _create_exam_with_question(client, admin_token)
+    exam_id, exam_code = _create_exam_with_question(client, admin_token)
 
     try:
         start_response = client.post(
             "/attempts/start",
             headers=_auth_header(student_token),
-            json={"exam_id": exam_id},
+            json={"exam_code": exam_code},
         )
         assert start_response.status_code == 200
         attempt_id = start_response.json()["id"]

@@ -16,4 +16,4 @@ def post_attempt_start(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_student),
 ) -> AttemptOut:
-    return start_attempt(db, current_user.id, payload.exam_id)
+    return start_attempt(db, current_user.id, payload.exam_code)

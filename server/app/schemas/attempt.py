@@ -1,11 +1,14 @@
 import uuid
 from datetime import datetime
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, StringConstraints
+
+ExamCode = Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^\d{6}$")]
 
 
 class AttemptStartRequest(BaseModel):
-    exam_id: uuid.UUID
+    exam_code: ExamCode
 
 
 class AttemptOut(BaseModel):

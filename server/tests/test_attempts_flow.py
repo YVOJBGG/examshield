@@ -18,7 +18,7 @@ def _login(client: TestClient, username: str, password: str) -> str:
     return response.json()["access_token"]
 
 
-def _create_exam_with_question(client: TestClient, admin_token: str) -> tuple[str, str]:
+def _create_exam_with_question(client: TestClient, admin_token: str) -> tuple[str, str, str]:
     headers = _auth_header(admin_token)
     exam_response = client.post(
         "/exams",
@@ -26,7 +26,9 @@ def _create_exam_with_question(client: TestClient, admin_token: str) -> tuple[st
         json={"title": f"M3 Attempt Flow {uuid.uuid4()}", "time_limit_minutes": 45},
     )
     assert exam_response.status_code == 201
-    exam_id = exam_response.json()["id"]
+    exam_payload = exam_response.json()
+    exam_id = exam_payload["id"]
+    exam_code = exam_payload["exam_code"]
 
     question_response = client.post(
         f"/exams/{exam_id}/questions",
@@ -35,7 +37,7 @@ def _create_exam_with_question(client: TestClient, admin_token: str) -> tuple[st
     )
     assert question_response.status_code == 201
     question_id = question_response.json()["id"]
-    return exam_id, question_id
+    return exam_id, exam_code, question_id
 
 
 def _ensure_student_user(username: str, password: str) -> None:
@@ -58,13 +60,13 @@ def test_student_full_attempt_flow_success(
 ) -> None:
     admin_token = auth_tokens["admin"]
     student_token = _login(client, "student1", "student123")
-    exam_id, question_id = _create_exam_with_question(client, admin_token)
+    exam_id, exam_code, question_id = _create_exam_with_question(client, admin_token)
 
     try:
         start_response = client.post(
             "/attempts/start",
             headers=_auth_header(student_token),
-            json={"exam_id": exam_id},
+            json={"exam_code": exam_code},
         )
         assert start_response.status_code == 200
         attempt = start_response.json()
@@ -74,12 +76,13 @@ def test_student_full_attempt_flow_success(
         assert attempt["submitted_at"] is None
 
         exam_response = client.get(
-            f"/student/exams/{exam_id}",
+            f"/student/exams/{exam_code}",
             headers=_auth_header(student_token),
         )
         assert exam_response.status_code == 200
         exam_payload = exam_response.json()
         assert exam_payload["id"] == exam_id
+        assert exam_payload["exam_code"] == exam_code
         assert "title" in exam_payload
         assert "time_limit_minutes" in exam_payload
         assert isinstance(exam_payload["questions"], list)
@@ -123,13 +126,13 @@ def test_autosave_rejected_after_submit(
 ) -> None:
     admin_token = auth_tokens["admin"]
     student_token = auth_tokens["student"]
-    exam_id, question_id = _create_exam_with_question(client, admin_token)
+    exam_id, exam_code, question_id = _create_exam_with_question(client, admin_token)
 
     try:
         start_response = client.post(
             "/attempts/start",
             headers=_auth_header(student_token),
-            json={"exam_id": exam_id},
+            json={"exam_code": exam_code},
         )
         assert start_response.status_code == 200
         attempt_id = start_response.json()["id"]
@@ -166,13 +169,13 @@ def test_student_cannot_write_another_students_attempt(
     other_username = f"student_m3_{uuid.uuid4().hex[:8]}"
     _ensure_student_user(other_username, "student123")
     other_token = _login(client, other_username, "student123")
-    exam_id, question_id = _create_exam_with_question(client, admin_token)
+    exam_id, exam_code, question_id = _create_exam_with_question(client, admin_token)
 
     try:
         start_response = client.post(
             "/attempts/start",
             headers=_auth_header(owner_token),
-            json={"exam_id": exam_id},
+            json={"exam_code": exam_code},
         )
         assert start_response.status_code == 200
         attempt_id = start_response.json()["id"]
@@ -209,7 +212,7 @@ def test_admin_cannot_use_student_only_endpoints(
     start_response = client.post(
         "/attempts/start",
         headers=admin_headers,
-        json={"exam_id": random_id},
+        json={"exam_code": "123456"},
     )
     assert start_response.status_code == 403
 
@@ -237,7 +240,7 @@ def test_start_attempt_nonexistent_exam_returns_404(
     response = client.post(
         "/attempts/start",
         headers=_auth_header(auth_tokens["student"]),
-        json={"exam_id": str(uuid.uuid4())},
+        json={"exam_code": "999999"},
     )
     assert response.status_code == 404
 
@@ -247,7 +250,7 @@ def test_autosave_and_submit_nonexistent_attempt_return_404(
 ) -> None:
     admin_token = auth_tokens["admin"]
     student_token = auth_tokens["student"]
-    exam_id, question_id = _create_exam_with_question(client, admin_token)
+    exam_id, exam_code, question_id = _create_exam_with_question(client, admin_token)
     missing_attempt_id = str(uuid.uuid4())
 
     try:
@@ -285,7 +288,7 @@ def test_repeated_autosave_updates_existing_answer_row(
         start_response = client.post(
             "/attempts/start",
             headers=_auth_header(student_token),
-            json={"exam_id": exam_id},
+            json={"exam_code": exam_code},
         )
         assert start_response.status_code == 200
         attempt_id = start_response.json()["id"]

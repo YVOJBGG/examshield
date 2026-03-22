@@ -1,5 +1,3 @@
-import uuid
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -21,6 +19,7 @@ def get_student_exams(
     return [
         StudentExamListItem(
             id=exam.id,
+            exam_code=exam.exam_code,
             title=exam.title,
             time_limit_minutes=exam.time_limit_minutes,
         )
@@ -28,16 +27,17 @@ def get_student_exams(
     ]
 
 
-@router.get("/{exam_id}", response_model=StudentExamOut)
+@router.get("/{exam_code}", response_model=StudentExamOut)
 def get_student_exam(
-    exam_id: uuid.UUID,
+    exam_code: str,
     db: Session = Depends(get_db),
     _current_user: User = Depends(require_student),
 ) -> StudentExamOut:
-    exam, questions = get_student_exam_content(db, exam_id)
+    exam, questions = get_student_exam_content(db, exam_code.strip())
     question_items = [StudentQuestionOut(id=question.id, text=question.text) for question in questions]
     return StudentExamOut(
         id=exam.id,
+        exam_code=exam.exam_code,
         title=exam.title,
         time_limit_minutes=exam.time_limit_minutes,
         questions=question_items,

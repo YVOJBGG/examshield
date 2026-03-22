@@ -22,6 +22,8 @@ def test_admin_exams_crud_flow(client: TestClient, auth_tokens: dict[str, str]) 
     exam_id = exam["id"]
     assert exam["title"] == unique_title
     assert exam["time_limit_minutes"] == 30
+    assert exam["exam_code"].isdigit()
+    assert len(exam["exam_code"]) == 6
 
     list_response = client.get("/exams", headers=admin_headers)
     assert list_response.status_code == 200

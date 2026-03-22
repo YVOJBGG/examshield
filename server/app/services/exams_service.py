@@ -1,4 +1,5 @@
 import uuid
+from secrets import randbelow
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -12,6 +13,14 @@ def list_exams(db: Session) -> list[Exam]:
     return list(db.scalars(select(Exam).order_by(Exam.created_at.desc())).all())
 
 
+def _generate_unique_exam_code(db: Session) -> str:
+    while True:
+        exam_code = f"{randbelow(1_000_000):06d}"
+        existing = db.scalar(select(Exam.id).where(Exam.exam_code == exam_code))
+        if existing is None:
+            return exam_code
+
+
 def create_exam(db: Session, payload: ExamCreate) -> Exam:
     if payload.time_limit_minutes <= 0:
         raise HTTPException(
@@ -19,7 +28,11 @@ def create_exam(db: Session, payload: ExamCreate) -> Exam:
             detail="time_limit_minutes must be greater than 0",
         )
 
-    exam = Exam(title=payload.title.strip(), time_limit_minutes=payload.time_limit_minutes)
+    exam = Exam(
+        exam_code=_generate_unique_exam_code(db),
+        title=payload.title.strip(),
+        time_limit_minutes=payload.time_limit_minutes,
+    )
     db.add(exam)
     db.commit()
     db.refresh(exam)
