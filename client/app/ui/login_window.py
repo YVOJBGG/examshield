@@ -46,12 +46,12 @@ class LoginWindow(QWidget):
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
 
         self.exam_id_input = QLineEdit()
-        self.exam_id_input.setPlaceholderText("Exam UUID")
+        self.exam_id_input.setPlaceholderText("6-digit Exam ID")
 
         self.login_button = QPushButton("Login and Open Exam")
         self.login_button.clicked.connect(self._on_login_clicked)
 
-        self.status_label = QLabel("Enter credentials and assigned exam ID.")
+        self.status_label = QLabel("Enter credentials and assigned Exam ID.")
         self.status_label.setWordWrap(True)
 
         form = QFormLayout()
@@ -82,11 +82,13 @@ class LoginWindow(QWidget):
         self.monitoring_client.clear_session()
         try:
             self.auth_manager.login(username, password)
+            self.quiz_manager.begin_user_session(username)
             exam = self.quiz_manager.load_exam(exam_id)
             attempt_id = self.quiz_manager.start_attempt()
             self.monitoring_client.set_session(exam_id=exam.id, attempt_id=attempt_id)
             self.monitoring_client.send_connected(message="Student connected to exam session")
             self.exam_window = ExamWindow(
+                on_session_finished=self._return_to_login,
                 quiz_manager=self.quiz_manager,
                 monitoring_client=self.monitoring_client,
                 violation_service=self.violation_service,
@@ -99,9 +101,24 @@ class LoginWindow(QWidget):
             )
         except ApiClientError as exc:
             self.status_label.setText("Login/exam setup failed.")
+            self.quiz_manager.end_session()
+            self.auth_manager.logout()
             QMessageBox.critical(self, "Request failed", str(exc))
         except Exception as exc:
             self.status_label.setText("Unexpected error.")
+            self.quiz_manager.end_session()
+            self.auth_manager.logout()
             QMessageBox.critical(self, "Error", str(exc))
         finally:
             self.login_button.setEnabled(True)
+
+    def _return_to_login(self, message: str | None = None) -> None:
+        self.auth_manager.logout()
+        self.monitoring_client.clear_session()
+        self.quiz_manager.end_session()
+        self.exam_window = None
+        self.password_input.clear()
+        self.show()
+        self.raise_()
+        self.activateWindow()
+        self.status_label.setText(message or "Session ended. Please login again.")

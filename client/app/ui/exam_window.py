@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+from datetime import datetime, timedelta, timezone
+
 from PyQt6.QtCore import QEvent, QTimer
 from PyQt6.QtGui import QCloseEvent
 from PyQt6.QtWidgets import (
@@ -23,28 +26,36 @@ from app.services.violation_service import ViolationService
 class ExamWindow(QWidget):
     def __init__(
         self,
+        on_session_finished: Callable[[str | None], None],
         quiz_manager: QuizManager,
         monitoring_client: MonitoringClient,
         violation_service: ViolationService,
         autosave_interval_ms: int = 25000,
     ) -> None:
         super().__init__()
+        self.on_session_finished = on_session_finished
         self.quiz_manager = quiz_manager
         self.monitoring_client = monitoring_client
         self.violation_service = violation_service
         self.autosave_interval_ms = autosave_interval_ms
         self._question_inputs: dict[str, QTextEdit] = {}
         self._submitted = False
+        self._ending_session = False
+        self._post_close_message: str | None = None
 
         exam = self.quiz_manager.current_exam
         if exam is None:
             raise ValueError("Exam data is missing.")
+        if self.quiz_manager.current_attempt_started_at is None:
+            raise ValueError("Attempt start time is missing.")
 
         self.setWindowTitle("ExamShield Student Exam")
         self.resize(820, 650)
 
         self.title_label = QLabel(f"Exam: {exam.title}")
+        self.exam_id_label = QLabel(f"Exam ID: {exam.exam_code}")
         self.time_limit_label = QLabel(f"Time limit: {exam.time_limit_minutes} minutes")
+        self.timer_label = QLabel("Time remaining: --:--")
         self.status_label = QLabel("Attempt started.")
         self.monitoring_status_label = QLabel("Live monitoring unavailable")
         self.violation_status_label = QLabel("Violation reporting idle")
@@ -84,7 +95,9 @@ class ExamWindow(QWidget):
 
         layout = QVBoxLayout()
         layout.addWidget(self.title_label)
+        layout.addWidget(self.exam_id_label)
         layout.addWidget(self.time_limit_label)
+        layout.addWidget(self.timer_label)
         layout.addWidget(scroll_area)
         layout.addLayout(button_row)
         layout.addWidget(self.status_label)
@@ -102,9 +115,15 @@ class ExamWindow(QWidget):
         self.monitoring_timer.timeout.connect(self._send_heartbeat)
         self.monitoring_timer.start()
 
+        self.countdown_timer = QTimer(self)
+        self.countdown_timer.setInterval(1000)
+        self.countdown_timer.timeout.connect(self._update_countdown)
+        self.countdown_timer.start()
+
         self._set_monitoring_status(
             self.monitoring_client.send_in_exam(message="Student entered exam window")
         )
+        self._update_countdown()
 
         if self.quiz_manager.has_dirty_cache():
             self.status_label.setText("Saved locally")
@@ -120,12 +139,12 @@ class ExamWindow(QWidget):
         return handler
 
     def _autosave_tick(self) -> None:
-        if self._submitted:
+        if self._submitted or self._ending_session:
             return
         self._autosave(in_background=True)
 
     def _autosave_now(self) -> None:
-        if self._submitted:
+        if self._submitted or self._ending_session:
             return
         self._autosave(in_background=False)
 
@@ -146,7 +165,7 @@ class ExamWindow(QWidget):
                 QMessageBox.warning(self, "Autosave error", str(exc))
 
     def _submit_exam(self) -> None:
-        if self._submitted:
+        if self._submitted or self._ending_session:
             return
         confirm = QMessageBox.question(
             self,
@@ -164,6 +183,7 @@ class ExamWindow(QWidget):
             self._submitted = True
             self.autosave_timer.stop()
             self.monitoring_timer.stop()
+            self.countdown_timer.stop()
             self._set_editable(False)
             self._set_monitoring_status(
                 self.monitoring_client.send_submitted(status="submitted", message="Exam submitted")
@@ -189,7 +209,7 @@ class ExamWindow(QWidget):
             widget.setReadOnly(not editable)
 
     def _send_heartbeat(self) -> None:
-        if self._submitted:
+        if self._submitted or self._ending_session:
             return
         self._set_monitoring_status(
             self.monitoring_client.send_heartbeat(message="Heartbeat")
@@ -220,7 +240,7 @@ class ExamWindow(QWidget):
         self._set_violation_status(ok)
 
     def _report_focus_lost(self) -> None:
-        if self._submitted:
+        if self._submitted or self._ending_session:
             return
         attempt_id = self._current_attempt_id()
         if not attempt_id:
@@ -234,13 +254,81 @@ class ExamWindow(QWidget):
             self._report_focus_lost()
         return super().event(event)
 
+    def _deadline(self) -> datetime:
+        assert self.quiz_manager.current_exam is not None
+        assert self.quiz_manager.current_attempt_started_at is not None
+        return self.quiz_manager.current_attempt_started_at + timedelta(
+            minutes=self.quiz_manager.current_exam.time_limit_minutes
+        )
+
+    @staticmethod
+    def _format_remaining(seconds: int) -> str:
+        minutes, secs = divmod(seconds, 60)
+        hours, minutes = divmod(minutes, 60)
+        if hours > 0:
+            return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+        return f"{minutes:02d}:{secs:02d}"
+
+    def _update_countdown(self) -> None:
+        if self._submitted or self._ending_session:
+            return
+        remaining_seconds = max(
+            0,
+            int((self._deadline() - datetime.now(timezone.utc)).total_seconds()),
+        )
+        self.timer_label.setText(f"Time remaining: {self._format_remaining(remaining_seconds)}")
+        if remaining_seconds <= 0:
+            self._handle_time_expired()
+
+    def _handle_time_expired(self) -> None:
+        if self._submitted or self._ending_session:
+            return
+
+        self._ending_session = True
+        self.autosave_timer.stop()
+        self.monitoring_timer.stop()
+        self.countdown_timer.stop()
+        self.submit_button.setEnabled(False)
+        self.autosave_button.setEnabled(False)
+        self.debug_violation_button.setEnabled(False)
+        self._set_editable(False)
+        self.status_label.setText("Time limit reached. Finalizing exam...")
+
+        try:
+            if self.quiz_manager.has_dirty_cache():
+                try:
+                    self.quiz_manager.autosave()
+                except Exception:
+                    pass
+
+            result = self.quiz_manager.submit()
+            attempt = result.get("attempt", {})
+            self._submitted = True
+            self._set_monitoring_status(
+                self.monitoring_client.send_submitted(status="submitted", message="Exam auto-submitted on timeout")
+            )
+            self.monitoring_client.clear_session()
+            self._post_close_message = (
+                f"Time expired. Attempt {attempt.get('status', 'submitted')} and session ended."
+            )
+        except Exception:
+            self.monitoring_client.clear_session()
+            self._post_close_message = (
+                "Time expired. Automatic submission could not be confirmed; local answers were kept when possible."
+            )
+
+        self.close()
+
     def closeEvent(self, event: QCloseEvent) -> None:
         self.autosave_timer.stop()
         self.monitoring_timer.stop()
-        if not self._submitted:
+        self.countdown_timer.stop()
+        if not self._submitted and not self._ending_session:
             self._report_focus_lost()
             self._set_monitoring_status(
                 self.monitoring_client.send_disconnected(message="Exam window closed")
             )
         self.monitoring_client.clear_session()
         super().closeEvent(event)
+        if self._ending_session:
+            self.on_session_finished(self._post_close_message)

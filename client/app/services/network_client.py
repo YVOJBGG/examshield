@@ -86,11 +86,11 @@ class NetworkClient:
         self.set_token(token)
         return data
 
-    def get_student_exam(self, exam_id: str) -> dict[str, Any]:
-        return self._request("GET", f"/student/exams/{exam_id}")
+    def get_student_exam(self, exam_code: str) -> dict[str, Any]:
+        return self._request("GET", f"/student/exams/{exam_code}")
 
-    def start_attempt(self, exam_id: str) -> dict[str, Any]:
-        return self._request("POST", "/attempts/start", {"exam_id": exam_id})
+    def start_attempt(self, exam_code: str) -> dict[str, Any]:
+        return self._request("POST", "/attempts/start", {"exam_code": exam_code})
 
     def autosave_answers(self, attempt_id: str, answers: list[dict[str, str]]) -> Any:
         return self._request(
