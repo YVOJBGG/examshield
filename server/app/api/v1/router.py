@@ -7,6 +7,7 @@ from app.api.routers import (
     auth_router,
     exams_router,
     monitoring_router,
+    screenshots_router,
     student_exams_router,
     violations_router,
 )
@@ -21,4 +22,5 @@ api_router.include_router(attempts_router)
 api_router.include_router(student_exams_router)
 api_router.include_router(answers_router)
 api_router.include_router(monitoring_router)
+api_router.include_router(screenshots_router)
 api_router.include_router(violations_router)

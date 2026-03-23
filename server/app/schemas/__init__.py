@@ -27,6 +27,7 @@ from app.schemas.review import (
     AttemptScoreOut,
     AttemptScoreUpdate,
 )
+from app.schemas.screenshot import ScreenshotListItem, ScreenshotOut
 from app.schemas.student_exam import StudentExamListItem, StudentExamOut, StudentQuestionOut
 from app.schemas.violation import ViolationCreate, ViolationListItem, ViolationOut
 
@@ -62,6 +63,8 @@ __all__ = [
     "AttemptReviewDetail",
     "AttemptScoreUpdate",
     "AttemptScoreOut",
+    "ScreenshotOut",
+    "ScreenshotListItem",
     "ViolationCreate",
     "ViolationOut",
     "ViolationListItem",

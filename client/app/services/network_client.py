@@ -63,6 +63,44 @@ class NetworkClient:
         except ValueError as exc:
             raise ApiClientError("Server returned invalid JSON") from exc
 
+    def _multipart_headers(self) -> dict[str, str]:
+        headers: dict[str, str] = {}
+        if self._token:
+            headers["Authorization"] = f"Bearer {self._token}"
+        return headers
+
+    def _request_multipart(
+        self,
+        method: str,
+        path: str,
+        *,
+        data: dict[str, Any],
+        files: dict[str, tuple[str, bytes, str]],
+    ) -> dict[str, Any]:
+        url = f"{self.base_url}{path}"
+        try:
+            response = requests.request(
+                method=method,
+                url=url,
+                headers=self._multipart_headers(),
+                data=data,
+                files=files,
+                timeout=self._timeout_seconds,
+            )
+        except requests.RequestException as exc:
+            raise NetworkError(f"Network request failed: {exc}") from exc
+
+        if response.status_code >= 400:
+            message = self._extract_error_message(response)
+            raise HttpError(response.status_code, message)
+
+        if not response.content:
+            return {}
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise ApiClientError("Server returned invalid JSON") from exc
+
     @staticmethod
     def _extract_error_message(response: requests.Response) -> str:
         try:
@@ -139,3 +177,18 @@ class NetworkClient:
         if details:
             payload["details"] = details
         return self._request("POST", "/violations", payload)
+
+    def upload_screenshot(
+        self,
+        *,
+        attempt_id: str,
+        filename: str,
+        content: bytes,
+        content_type: str = "image/png",
+    ) -> dict[str, Any]:
+        return self._request_multipart(
+            "POST",
+            "/screenshots/upload",
+            data={"attempt_id": attempt_id},
+            files={"file": (filename, content, content_type)},
+        )

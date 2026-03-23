@@ -439,7 +439,9 @@ label {
 
 .question-item,
 .violation-card,
-.review-meta-card {
+.review-meta-card,
+.screenshot-card,
+.lightbox-panel {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--bg-card-strong);
@@ -449,6 +451,10 @@ label {
 .question-item,
 .violation-card {
   padding: 1rem;
+}
+
+.screenshot-panel {
+  margin-top: 1rem;
 }
 
 .question-item-header,
@@ -515,6 +521,13 @@ label {
 }
 
 .monitoring-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.screenshot-toolbar {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -633,6 +646,96 @@ label {
   box-shadow: 0 18px 32px rgba(15, 23, 42, 0.2);
 }
 
+.screenshot-empty-state {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: rgba(248, 250, 252, 0.85);
+}
+
+.screenshot-empty-state p,
+.lightbox-header p,
+.screenshot-card-meta span {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.screenshot-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.9rem;
+}
+
+.screenshot-card {
+  display: grid;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.75rem;
+  text-align: left;
+  color: var(--text-main);
+  background: var(--bg-card-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.screenshot-card img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: #e2e8f0;
+}
+
+.screenshot-card-meta {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(6px);
+}
+
+.lightbox-panel {
+  width: min(1100px, 100%);
+  max-height: calc(100vh - 3rem);
+  padding: 1rem;
+  overflow: hidden;
+}
+
+.lightbox-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.lightbox-header h3 {
+  margin: 0;
+}
+
+.lightbox-body {
+  max-height: calc(100vh - 10rem);
+  overflow: auto;
+  border-radius: var(--radius-md);
+  background: #0f172a;
+}
+
+.lightbox-body img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 @media (max-width: 1180px) {
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -683,5 +786,11 @@ label {
 
   .toast {
     max-width: none;
+  }
+
+  .lightbox-header,
+  .screenshot-toolbar {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

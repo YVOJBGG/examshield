@@ -11,11 +11,12 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from app.config import AUTOSAVE_INTERVAL_MS
+from app.config import AUTOSAVE_INTERVAL_MS, SCREENSHOT_CAPTURE_INTERVAL_MS
 from app.services.auth_manager import AuthManager
 from app.services.monitoring_client import MonitoringClient
 from app.services.network_client import ApiClientError
 from app.services.quiz_manager import QuizManager
+from app.services.screenshot_service import ScreenshotService
 from app.services.violation_service import ViolationService
 from app.ui.exam_window import ExamWindow
 
@@ -26,12 +27,14 @@ class LoginWindow(QWidget):
         auth_manager: AuthManager,
         quiz_manager: QuizManager,
         monitoring_client: MonitoringClient,
+        screenshot_service: ScreenshotService,
         violation_service: ViolationService,
     ) -> None:
         super().__init__()
         self.auth_manager = auth_manager
         self.quiz_manager = quiz_manager
         self.monitoring_client = monitoring_client
+        self.screenshot_service = screenshot_service
         self.violation_service = violation_service
         self.exam_window: ExamWindow | None = None
 
@@ -80,6 +83,7 @@ class LoginWindow(QWidget):
         self.login_button.setEnabled(False)
         self.status_label.setText("Logging in and loading exam...")
         self.monitoring_client.clear_session()
+        self.screenshot_service.stop()
         try:
             self.auth_manager.login(username, password)
             self.quiz_manager.begin_user_session(username)
@@ -91,8 +95,10 @@ class LoginWindow(QWidget):
                 on_session_finished=self._return_to_login,
                 quiz_manager=self.quiz_manager,
                 monitoring_client=self.monitoring_client,
+                screenshot_service=self.screenshot_service,
                 violation_service=self.violation_service,
                 autosave_interval_ms=AUTOSAVE_INTERVAL_MS,
+                screenshot_interval_ms=SCREENSHOT_CAPTURE_INTERVAL_MS,
             )
             self.exam_window.show()
             self.hide()
@@ -115,6 +121,7 @@ class LoginWindow(QWidget):
     def _return_to_login(self, message: str | None = None) -> None:
         self.auth_manager.logout()
         self.monitoring_client.clear_session()
+        self.screenshot_service.stop()
         self.quiz_manager.end_session()
         self.exam_window = None
         self.password_input.clear()

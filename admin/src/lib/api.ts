@@ -99,6 +99,14 @@ export type AttemptScoreOut = {
   graded_at?: string | null;
 };
 
+export type ScreenshotListItem = {
+  id: string;
+  attempt_id: string;
+  file_path: string;
+  captured_at: string;
+  file_url: string;
+};
+
 export function setToken(token: string): void {
   localStorage.setItem(TOKEN_KEY, token);
 }
@@ -309,4 +317,20 @@ export async function saveAttemptScore(attemptId: string, score: number): Promis
     throw new ApiError(response.status, await readErrorMessage(response, "Could not save score"));
   }
   return parseJson<AttemptScoreOut>(response);
+}
+
+export async function listAttemptScreenshots(attemptId: string): Promise<ScreenshotListItem[]> {
+  const response = await authFetch(`/screenshots/attempt/${attemptId}`);
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not load screenshots"));
+  }
+  return parseJson<ScreenshotListItem[]>(response);
+}
+
+export async function getScreenshotBlob(screenshotId: string): Promise<Blob> {
+  const response = await authFetch(`/screenshots/${screenshotId}/file`);
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not load screenshot file"));
+  }
+  return response.blob();
 }

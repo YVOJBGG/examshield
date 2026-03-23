@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
+import ScreenshotGallery from "../components/ScreenshotGallery";
 import {
   ApiError,
   getExam,
@@ -327,6 +328,13 @@ function ExamSubmissionsPage({ onAuthError }: Props) {
                     </article>
                   ))}
                 </div>
+
+                <ScreenshotGallery
+                  attemptId={attemptDetail.attempt_id}
+                  title="Screenshot timeline"
+                  description="Captured screenshots are shown newest first for quick post-exam review."
+                  onAuthError={onAuthError}
+                />
               </>
             )}
           </aside>

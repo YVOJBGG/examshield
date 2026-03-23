@@ -20,6 +20,7 @@ from app.config import DEV_MODE, MONITORING_HEARTBEAT_INTERVAL_MS
 from app.services.monitoring_client import MonitoringClient
 from app.services.network_client import ApiClientError
 from app.services.quiz_manager import QuizManager
+from app.services.screenshot_service import ScreenshotService
 from app.services.violation_service import ViolationService
 
 
@@ -29,15 +30,19 @@ class ExamWindow(QWidget):
         on_session_finished: Callable[[str | None], None],
         quiz_manager: QuizManager,
         monitoring_client: MonitoringClient,
+        screenshot_service: ScreenshotService,
         violation_service: ViolationService,
         autosave_interval_ms: int = 25000,
+        screenshot_interval_ms: int = 45000,
     ) -> None:
         super().__init__()
         self.on_session_finished = on_session_finished
         self.quiz_manager = quiz_manager
         self.monitoring_client = monitoring_client
+        self.screenshot_service = screenshot_service
         self.violation_service = violation_service
         self.autosave_interval_ms = autosave_interval_ms
+        self.screenshot_interval_ms = screenshot_interval_ms
         self._question_inputs: dict[str, QTextEdit] = {}
         self._submitted = False
         self._ending_session = False
@@ -115,6 +120,10 @@ class ExamWindow(QWidget):
         self.monitoring_timer.timeout.connect(self._send_heartbeat)
         self.monitoring_timer.start()
 
+        self.screenshot_timer = QTimer(self)
+        self.screenshot_timer.setInterval(self.screenshot_interval_ms)
+        self.screenshot_timer.timeout.connect(self._capture_screenshot)
+
         self.countdown_timer = QTimer(self)
         self.countdown_timer.setInterval(1000)
         self.countdown_timer.timeout.connect(self._update_countdown)
@@ -123,6 +132,10 @@ class ExamWindow(QWidget):
         self._set_monitoring_status(
             self.monitoring_client.send_in_exam(message="Student entered exam window")
         )
+        attempt_id = self._current_attempt_id()
+        if attempt_id and self.screenshot_interval_ms > 0:
+            self.screenshot_service.start(attempt_id)
+            self.screenshot_timer.start()
         self._update_countdown()
 
         if self.quiz_manager.has_dirty_cache():
@@ -183,6 +196,8 @@ class ExamWindow(QWidget):
             self._submitted = True
             self.autosave_timer.stop()
             self.monitoring_timer.stop()
+            self.screenshot_timer.stop()
+            self.screenshot_service.stop()
             self.countdown_timer.stop()
             self._set_editable(False)
             self._set_monitoring_status(
@@ -214,6 +229,11 @@ class ExamWindow(QWidget):
         self._set_monitoring_status(
             self.monitoring_client.send_heartbeat(message="Heartbeat")
         )
+
+    def _capture_screenshot(self) -> None:
+        if self._submitted or self._ending_session:
+            return
+        self.screenshot_service.capture_and_upload_async()
 
     def _set_monitoring_status(self, ok: bool) -> None:
         if ok:
@@ -287,6 +307,8 @@ class ExamWindow(QWidget):
         self._ending_session = True
         self.autosave_timer.stop()
         self.monitoring_timer.stop()
+        self.screenshot_timer.stop()
+        self.screenshot_service.stop()
         self.countdown_timer.stop()
         self.submit_button.setEnabled(False)
         self.autosave_button.setEnabled(False)
@@ -322,6 +344,8 @@ class ExamWindow(QWidget):
     def closeEvent(self, event: QCloseEvent) -> None:
         self.autosave_timer.stop()
         self.monitoring_timer.stop()
+        self.screenshot_timer.stop()
+        self.screenshot_service.stop()
         self.countdown_timer.stop()
         if not self._submitted and not self._ending_session:
             self._report_focus_lost()

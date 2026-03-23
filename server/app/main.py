@@ -16,3 +16,8 @@ if settings.ENV == "dev":
     )
 
 app.include_router(api_router)
+
+
+@app.on_event("startup")
+def ensure_storage_dirs() -> None:
+    settings.screenshots_dir_path.mkdir(parents=True, exist_ok=True)

@@ -174,7 +174,7 @@ function App() {
           <div className="page-stack">
             <Routes>
               <Route path="/" element={<ExamsListPage onAuthError={handleAuthError} />} />
-              <Route path="/monitoring" element={<LiveMonitoringPage />} />
+              <Route path="/monitoring" element={<LiveMonitoringPage onAuthError={handleAuthError} />} />
               <Route path="/exams/:examId" element={<ExamEditorPage onAuthError={handleAuthError} />} />
               <Route
                 path="/exams/:examId/submissions"

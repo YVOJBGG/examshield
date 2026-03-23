@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { getToken, listAttemptViolations, type ViolationListItem } from "../lib/api";
+import ScreenshotGallery from "../components/ScreenshotGallery";
 import {
   MonitoringSocket,
   type MonitoringConnectionState,
@@ -83,7 +84,11 @@ function formatTimestamp(value: string | null): string {
   return date.toLocaleString();
 }
 
-function LiveMonitoringPage() {
+type Props = {
+  onAuthError?: (message: string) => void;
+};
+
+function LiveMonitoringPage({ onAuthError }: Props) {
   const [connection, setConnection] = useState<MonitoringConnectionState>("connecting");
   const [attemptMap, setAttemptMap] = useState<Record<string, AttemptRow>>({});
   const [lastMessageAt, setLastMessageAt] = useState<string | null>(null);
@@ -430,6 +435,12 @@ function LiveMonitoringPage() {
                   ))}
                 </div>
               )}
+              <ScreenshotGallery
+                attemptId={selectedRow.attempt_id}
+                title="Attempt screenshots"
+                description="Review captured screenshots for this active or recently tracked attempt."
+                onAuthError={onAuthError}
+              />
             </>
           )}
         </aside>
