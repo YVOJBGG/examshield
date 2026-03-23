@@ -10,11 +10,13 @@ ExamCode = Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^\d
 class ExamCreate(BaseModel):
     title: str
     time_limit_minutes: int
+    is_available: bool = True
 
 
 class ExamUpdate(BaseModel):
     title: str | None = None
     time_limit_minutes: int | None = None
+    is_available: bool | None = None
 
 
 class ExamOut(BaseModel):
@@ -24,4 +26,5 @@ class ExamOut(BaseModel):
     exam_code: str
     title: str
     time_limit_minutes: int
+    is_available: bool
     created_at: datetime

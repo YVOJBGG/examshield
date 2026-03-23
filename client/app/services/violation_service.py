@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 
-from app.config import FOCUS_LOST_VIOLATION_COOLDOWN_SECONDS
+from app.config import FOCUS_LOST_VIOLATION_COOLDOWN_SECONDS, SHORTCUT_VIOLATION_COOLDOWN_SECONDS
 from app.services.network_client import NetworkClient
 
 
@@ -44,17 +44,48 @@ class ViolationService:
             return False
 
     def report_focus_lost(self, attempt_id: str) -> bool:
-        key = (attempt_id, "focus_lost")
+        return self._report_with_cooldown(
+            attempt_id=attempt_id,
+            violation_type="focus_lost",
+            details="Exam window lost focus during active attempt",
+            cooldown_seconds=FOCUS_LOST_VIOLATION_COOLDOWN_SECONDS,
+            cooldown_message="Focus loss ignored during cooldown",
+        )
+
+    def report_tab_switch_attempt(self, attempt_id: str, details: str) -> bool:
+        return self._report_with_cooldown(
+            attempt_id=attempt_id,
+            violation_type="tab_switch_attempt",
+            details=details,
+            cooldown_seconds=SHORTCUT_VIOLATION_COOLDOWN_SECONDS,
+            cooldown_message="Tab switch attempt ignored during cooldown",
+        )
+
+    def report_desktop_switch_attempt(self, attempt_id: str, details: str) -> bool:
+        return self._report_with_cooldown(
+            attempt_id=attempt_id,
+            violation_type="desktop_switch_attempt",
+            details=details,
+            cooldown_seconds=SHORTCUT_VIOLATION_COOLDOWN_SECONDS,
+            cooldown_message="Desktop switch attempt ignored during cooldown",
+        )
+
+    def _report_with_cooldown(
+        self,
+        *,
+        attempt_id: str,
+        violation_type: str,
+        details: str,
+        cooldown_seconds: float,
+        cooldown_message: str,
+    ) -> bool:
+        key = (attempt_id, violation_type)
         now = time.monotonic()
         last_sent = self._cooldowns.get(key)
-        if last_sent is not None and now - last_sent < FOCUS_LOST_VIOLATION_COOLDOWN_SECONDS:
-            self._last_status_message = "Focus loss ignored during cooldown"
+        if last_sent is not None and now - last_sent < cooldown_seconds:
+            self._last_status_message = cooldown_message
             return False
-        ok = self.report_violation(
-            attempt_id,
-            "focus_lost",
-            "Exam window lost focus during active attempt",
-        )
+        ok = self.report_violation(attempt_id, violation_type, details)
         if ok:
             self._cooldowns[key] = now
         return ok

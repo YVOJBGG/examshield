@@ -31,9 +31,9 @@ def get_student_exams(
 def get_student_exam(
     exam_code: str,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(require_student),
+    current_user: User = Depends(require_student),
 ) -> StudentExamOut:
-    exam, questions = get_student_exam_content(db, exam_code.strip())
+    exam, questions = get_student_exam_content(db, current_user.id, exam_code.strip())
     question_items = [StudentQuestionOut(id=question.id, text=question.text) for question in questions]
     return StudentExamOut(
         id=exam.id,

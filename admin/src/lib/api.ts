@@ -26,12 +26,14 @@ export type Exam = {
   exam_code: string;
   title: string;
   time_limit_minutes: number;
+  is_available: boolean;
   created_at: string;
 };
 
 export type ExamCreate = {
   title: string;
   time_limit_minutes: number;
+  is_available?: boolean;
 };
 
 export type ExamUpdate = Partial<ExamCreate>;

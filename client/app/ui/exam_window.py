@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 
-from PyQt6.QtCore import QEvent, QTimer
+from PyQt6.QtCore import QEvent, QTimer, pyqtSignal
 from PyQt6.QtGui import QCloseEvent
 from PyQt6.QtWidgets import (
     QHBoxLayout,
@@ -20,11 +20,14 @@ from app.config import DEV_MODE, MONITORING_HEARTBEAT_INTERVAL_MS
 from app.services.monitoring_client import MonitoringClient
 from app.services.network_client import ApiClientError
 from app.services.quiz_manager import QuizManager
+from app.services.shortcut_detection_service import ShortcutDetectionService
 from app.services.screenshot_service import ScreenshotService
 from app.services.violation_service import ViolationService
 
 
 class ExamWindow(QWidget):
+    shortcut_violation_detected = pyqtSignal(str, str)
+
     def __init__(
         self,
         on_session_finished: Callable[[str | None], None],
@@ -47,6 +50,8 @@ class ExamWindow(QWidget):
         self._submitted = False
         self._ending_session = False
         self._post_close_message: str | None = None
+        self._shortcut_detection_service = ShortcutDetectionService(self.shortcut_violation_detected.emit)
+        self.shortcut_violation_detected.connect(self._report_shortcut_violation)
 
         exam = self.quiz_manager.current_exam
         if exam is None:
@@ -136,6 +141,7 @@ class ExamWindow(QWidget):
         if attempt_id and self.screenshot_interval_ms > 0:
             self.screenshot_service.start(attempt_id)
             self.screenshot_timer.start()
+        self._shortcut_detection_service.start()
         self._update_countdown()
 
         if self.quiz_manager.has_dirty_cache():
@@ -198,6 +204,7 @@ class ExamWindow(QWidget):
             self.monitoring_timer.stop()
             self.screenshot_timer.stop()
             self.screenshot_service.stop()
+            self._shortcut_detection_service.stop()
             self.countdown_timer.stop()
             self._set_editable(False)
             self._set_monitoring_status(
@@ -234,6 +241,19 @@ class ExamWindow(QWidget):
         if self._submitted or self._ending_session:
             return
         self.screenshot_service.capture_and_upload_async()
+
+    def _report_shortcut_violation(self, violation_type: str, details: str) -> None:
+        if self._submitted or self._ending_session:
+            return
+        attempt_id = self._current_attempt_id()
+        if not attempt_id:
+            self.violation_status_label.setText("Violation reporting unavailable: attempt missing")
+            return
+        if violation_type == "desktop_switch_attempt":
+            ok = self.violation_service.report_desktop_switch_attempt(attempt_id, details)
+        else:
+            ok = self.violation_service.report_tab_switch_attempt(attempt_id, details)
+        self._set_violation_status(ok)
 
     def _set_monitoring_status(self, ok: bool) -> None:
         if ok:
@@ -309,6 +329,7 @@ class ExamWindow(QWidget):
         self.monitoring_timer.stop()
         self.screenshot_timer.stop()
         self.screenshot_service.stop()
+        self._shortcut_detection_service.stop()
         self.countdown_timer.stop()
         self.submit_button.setEnabled(False)
         self.autosave_button.setEnabled(False)
@@ -346,6 +367,7 @@ class ExamWindow(QWidget):
         self.monitoring_timer.stop()
         self.screenshot_timer.stop()
         self.screenshot_service.stop()
+        self._shortcut_detection_service.stop()
         self.countdown_timer.stop()
         if not self._submitted and not self._ending_session:
             self._report_focus_lost()

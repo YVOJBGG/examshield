@@ -95,6 +95,11 @@ function ExamsListPage({ onAuthError }: Props) {
           <p>All configured assessments available to students.</p>
         </article>
         <article className="stat-card">
+          <span className="stat-label">Available now</span>
+          <strong>{exams.filter((exam) => exam.is_available).length}</strong>
+          <p>Exams students can currently start for the first time.</p>
+        </article>
+        <article className="stat-card">
           <span className="stat-label">Default timer</span>
           <strong>{timeLimit} min</strong>
           <p>New exams start with this duration unless you adjust it before saving.</p>
@@ -147,6 +152,7 @@ function ExamsListPage({ onAuthError }: Props) {
                 <tr>
                   <th>Exam ID</th>
                   <th>Title</th>
+                  <th>Availability</th>
                   <th>Time Limit</th>
                   <th>Actions</th>
                 </tr>
@@ -159,6 +165,11 @@ function ExamsListPage({ onAuthError }: Props) {
                     </td>
                     <td>
                       <strong>{exam.title}</strong>
+                    </td>
+                    <td>
+                      <span className={exam.is_available ? "availability-pill available" : "availability-pill unavailable"}>
+                        {exam.is_available ? "Available" : "Unavailable"}
+                      </span>
                     </td>
                     <td>{exam.time_limit_minutes} min</td>
                     <td className="actions">
@@ -173,7 +184,7 @@ function ExamsListPage({ onAuthError }: Props) {
                 ))}
                 {exams.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="empty-cell">No exams yet.</td>
+                    <td colSpan={5} className="empty-cell">No exams yet.</td>
                   </tr>
                 )}
               </tbody>

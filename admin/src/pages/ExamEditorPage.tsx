@@ -76,6 +76,7 @@ function ExamEditorPage({ onAuthError }: Props) {
       const updated = await updateExam(exam.id, {
         title: exam.title,
         time_limit_minutes: exam.time_limit_minutes,
+        is_available: exam.is_available,
       });
       setExam(updated);
     } catch (err) {
@@ -222,6 +223,11 @@ function ExamEditorPage({ onAuthError }: Props) {
           <strong>{exam.time_limit_minutes} min</strong>
           <p>Student countdown duration from attempt start.</p>
         </article>
+        <article className="stat-card">
+          <span className="stat-label">Availability</span>
+          <strong>{exam.is_available ? "Available" : "Unavailable"}</strong>
+          <p>Controls whether new students can start this exam.</p>
+        </article>
       </div>
 
       {error && <p className="error">Error: {error}</p>}
@@ -234,7 +240,7 @@ function ExamEditorPage({ onAuthError }: Props) {
           </div>
         </div>
 
-        <form className="inline-form" onSubmit={onSaveExam}>
+        <form className="inline-form exam-settings-form" onSubmit={onSaveExam}>
           <input
             value={exam.title}
             onChange={(event) => setExam({ ...exam, title: event.target.value })}
@@ -248,6 +254,14 @@ function ExamEditorPage({ onAuthError }: Props) {
             onChange={(event) => setExam({ ...exam, time_limit_minutes: Number(event.target.value) })}
             required
           />
+          <label className="toggle-field">
+            <input
+              type="checkbox"
+              checked={exam.is_available}
+              onChange={(event) => setExam({ ...exam, is_available: event.target.checked })}
+            />
+            <span>Exam available to students</span>
+          </label>
           <button type="submit" disabled={savingExam}>
             {savingExam ? "Saving..." : "Save Exam"}
           </button>

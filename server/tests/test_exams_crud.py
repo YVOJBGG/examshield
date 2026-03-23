@@ -22,6 +22,7 @@ def test_admin_exams_crud_flow(client: TestClient, auth_tokens: dict[str, str]) 
     exam_id = exam["id"]
     assert exam["title"] == unique_title
     assert exam["time_limit_minutes"] == 30
+    assert exam["is_available"] is True
     assert exam["exam_code"].isdigit()
     assert len(exam["exam_code"]) == 6
 
@@ -36,11 +37,12 @@ def test_admin_exams_crud_flow(client: TestClient, auth_tokens: dict[str, str]) 
     update_response = client.put(
         f"/exams/{exam_id}",
         headers=admin_headers,
-        json={"title": f"{unique_title} Updated", "time_limit_minutes": 45},
+        json={"title": f"{unique_title} Updated", "time_limit_minutes": 45, "is_available": False},
     )
     assert update_response.status_code == 200
     assert update_response.json()["title"].endswith("Updated")
     assert update_response.json()["time_limit_minutes"] == 45
+    assert update_response.json()["is_available"] is False
 
     delete_response = client.delete(f"/exams/{exam_id}", headers=admin_headers)
     assert delete_response.status_code == 204
@@ -83,3 +85,27 @@ def test_exam_not_found_returns_404(client: TestClient, auth_tokens: dict[str, s
 
     delete_response = client.delete(f"/exams/{missing_id}", headers=admin_headers)
     assert delete_response.status_code == 404
+
+
+def test_non_admin_cannot_change_exam_availability(
+    client: TestClient, auth_tokens: dict[str, str]
+) -> None:
+    admin_headers = _auth_header(auth_tokens["admin"])
+    student_headers = _auth_header(auth_tokens["student"])
+    create_response = client.post(
+        "/exams",
+        headers=admin_headers,
+        json={"title": f"Availability Guard {uuid.uuid4()}", "time_limit_minutes": 25},
+    )
+    assert create_response.status_code == 201
+    exam_id = create_response.json()["id"]
+
+    try:
+        update_response = client.put(
+            f"/exams/{exam_id}",
+            headers=student_headers,
+            json={"is_available": False},
+        )
+        assert update_response.status_code == 403
+    finally:
+        client.delete(f"/exams/{exam_id}", headers=admin_headers)

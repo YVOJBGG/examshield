@@ -338,6 +338,10 @@ label {
   align-items: end;
 }
 
+.exam-settings-form {
+  grid-template-columns: minmax(0, 2fr) minmax(120px, 180px) minmax(220px, 260px) auto;
+}
+
 .toolbar,
 .actions {
   display: flex;
@@ -587,7 +591,8 @@ label {
 .alert-badge,
 .neutral-badge,
 .status-pill,
-.id-chip {
+.id-chip,
+.availability-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -617,6 +622,36 @@ label {
 .id-chip {
   background: rgba(15, 23, 42, 0.06);
   color: #0f172a;
+}
+
+.availability-pill.available {
+  background: rgba(220, 252, 231, 0.95);
+  color: #166534;
+}
+
+.availability-pill.unavailable {
+  background: rgba(254, 226, 226, 0.95);
+  color: #991b1b;
+}
+
+.toggle-field {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 48px;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+
+.toggle-field input {
+  width: auto;
+  margin: 0;
+}
+
+.toggle-field span {
+  font-weight: 700;
 }
 
 .mono {

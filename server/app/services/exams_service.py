@@ -32,6 +32,7 @@ def create_exam(db: Session, payload: ExamCreate) -> Exam:
         exam_code=_generate_unique_exam_code(db),
         title=payload.title.strip(),
         time_limit_minutes=payload.time_limit_minutes,
+        is_available=payload.is_available,
     )
     db.add(exam)
     db.commit()
@@ -59,6 +60,8 @@ def update_exam(db: Session, exam_id: uuid.UUID, payload: ExamUpdate) -> Exam:
         exam.title = payload.title.strip()
     if payload.time_limit_minutes is not None:
         exam.time_limit_minutes = payload.time_limit_minutes
+    if payload.is_available is not None:
+        exam.is_available = payload.is_available
 
     db.commit()
     db.refresh(exam)

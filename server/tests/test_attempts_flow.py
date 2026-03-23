@@ -330,3 +330,69 @@ def test_repeated_autosave_updates_existing_answer_row(
             assert rows[0].answer_text == "Version 2"
     finally:
         client.delete(f"/exams/{exam_id}", headers=_auth_header(admin_token))
+
+
+def test_student_cannot_start_unavailable_exam(
+    client: TestClient, auth_tokens: dict[str, str]
+) -> None:
+    admin_token = auth_tokens["admin"]
+    student_token = auth_tokens["student"]
+    exam_id, exam_code, _question_id = _create_exam_with_question(client, admin_token)
+
+    try:
+        update_response = client.put(
+            f"/exams/{exam_id}",
+            headers=_auth_header(admin_token),
+            json={"is_available": False},
+        )
+        assert update_response.status_code == 200
+        assert update_response.json()["is_available"] is False
+
+        start_response = client.post(
+            "/attempts/start",
+            headers=_auth_header(student_token),
+            json={"exam_code": exam_code},
+        )
+        assert start_response.status_code == 400
+        assert start_response.json()["detail"] == "This exam is currently unavailable."
+    finally:
+        client.delete(f"/exams/{exam_id}", headers=_auth_header(admin_token))
+
+
+def test_student_cannot_reenter_exam_after_submitting_attempt(
+    client: TestClient, auth_tokens: dict[str, str]
+) -> None:
+    admin_token = auth_tokens["admin"]
+    student_token = auth_tokens["student"]
+    exam_id, exam_code, question_id = _create_exam_with_question(client, admin_token)
+
+    try:
+        start_response = client.post(
+            "/attempts/start",
+            headers=_auth_header(student_token),
+            json={"exam_code": exam_code},
+        )
+        assert start_response.status_code == 200
+        attempt_id = start_response.json()["id"]
+
+        submit_response = client.post(
+            "/answers/submit",
+            headers=_auth_header(student_token),
+            json={
+                "attempt_id": attempt_id,
+                "answers": [{"question_id": question_id, "answer_text": "Submitted"}],
+            },
+        )
+        assert submit_response.status_code == 200
+
+        reenter_response = client.post(
+            "/attempts/start",
+            headers=_auth_header(student_token),
+            json={"exam_code": exam_code},
+        )
+        assert reenter_response.status_code == 400
+        assert reenter_response.json()["detail"] == (
+            "You have already submitted this exam and cannot re-enter it."
+        )
+    finally:
+        client.delete(f"/exams/{exam_id}", headers=_auth_header(admin_token))

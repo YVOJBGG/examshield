@@ -133,6 +133,109 @@ def test_student_exam_execution_flow(client: TestClient, auth_tokens: dict[str, 
         client.delete(f"/exams/{exam_id}", headers=_auth_header(admin_token))
 
 
+def test_student_exam_lookup_blocks_unavailable_exam_without_active_attempt(
+    client: TestClient, auth_tokens: dict[str, str]
+) -> None:
+    admin_token = auth_tokens["admin"]
+    student_token = auth_tokens["student"]
+    exam_id, exam_code, _question_id = _create_exam_with_questions(client, admin_token)
+
+    try:
+        update_response = client.put(
+            f"/exams/{exam_id}",
+            headers=_auth_header(admin_token),
+            json={"is_available": False},
+        )
+        assert update_response.status_code == 200
+
+        exam_response = client.get(
+            f"/student/exams/{exam_code}",
+            headers=_auth_header(student_token),
+        )
+        assert exam_response.status_code == 400
+        assert exam_response.json()["detail"] == "This exam is currently unavailable."
+    finally:
+        client.delete(f"/exams/{exam_id}", headers=_auth_header(admin_token))
+
+
+def test_student_can_resume_in_progress_attempt_when_exam_becomes_unavailable(
+    client: TestClient, auth_tokens: dict[str, str]
+) -> None:
+    admin_token = auth_tokens["admin"]
+    student_token = auth_tokens["student"]
+    exam_id, exam_code, _question_id = _create_exam_with_questions(client, admin_token)
+
+    try:
+        start_response = client.post(
+            "/attempts/start",
+            headers=_auth_header(student_token),
+            json={"exam_code": exam_code},
+        )
+        assert start_response.status_code == 200
+        attempt_id = start_response.json()["id"]
+
+        update_response = client.put(
+            f"/exams/{exam_id}",
+            headers=_auth_header(admin_token),
+            json={"is_available": False},
+        )
+        assert update_response.status_code == 200
+
+        exam_response = client.get(
+            f"/student/exams/{exam_code}",
+            headers=_auth_header(student_token),
+        )
+        assert exam_response.status_code == 200
+
+        restart_response = client.post(
+            "/attempts/start",
+            headers=_auth_header(student_token),
+            json={"exam_code": exam_code},
+        )
+        assert restart_response.status_code == 200
+        assert restart_response.json()["id"] == attempt_id
+    finally:
+        client.delete(f"/exams/{exam_id}", headers=_auth_header(admin_token))
+
+
+def test_student_exam_lookup_blocks_reentry_after_submission(
+    client: TestClient, auth_tokens: dict[str, str]
+) -> None:
+    admin_token = auth_tokens["admin"]
+    student_token = auth_tokens["student"]
+    exam_id, exam_code, question_id = _create_exam_with_questions(client, admin_token)
+
+    try:
+        start_response = client.post(
+            "/attempts/start",
+            headers=_auth_header(student_token),
+            json={"exam_code": exam_code},
+        )
+        assert start_response.status_code == 200
+        attempt_id = start_response.json()["id"]
+
+        submit_response = client.post(
+            "/answers/submit",
+            headers=_auth_header(student_token),
+            json={
+                "attempt_id": attempt_id,
+                "answers": [{"question_id": question_id, "answer_text": "Final answer"}],
+            },
+        )
+        assert submit_response.status_code == 200
+
+        exam_response = client.get(
+            f"/student/exams/{exam_code}",
+            headers=_auth_header(student_token),
+        )
+        assert exam_response.status_code == 400
+        assert exam_response.json()["detail"] == (
+            "You have already submitted this exam and cannot re-enter it."
+        )
+    finally:
+        client.delete(f"/exams/{exam_id}", headers=_auth_header(admin_token))
+
+
 def test_student_routes_forbid_admin_token(client: TestClient, auth_tokens: dict[str, str]) -> None:
     admin_headers = _auth_header(auth_tokens["admin"])
     random_id = str(uuid.uuid4())

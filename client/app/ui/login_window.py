@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
 from app.config import AUTOSAVE_INTERVAL_MS, SCREENSHOT_CAPTURE_INTERVAL_MS
 from app.services.auth_manager import AuthManager
 from app.services.monitoring_client import MonitoringClient
-from app.services.network_client import ApiClientError
+from app.services.network_client import ApiClientError, HttpError
 from app.services.quiz_manager import QuizManager
 from app.services.screenshot_service import ScreenshotService
 from app.services.violation_service import ViolationService
@@ -106,10 +106,11 @@ class LoginWindow(QWidget):
                 f"Started attempt {attempt_id} for {exam.title}.",
             )
         except ApiClientError as exc:
-            self.status_label.setText("Login/exam setup failed.")
+            message = exc.message if isinstance(exc, HttpError) else str(exc)
+            self.status_label.setText(message)
             self.quiz_manager.end_session()
             self.auth_manager.logout()
-            QMessageBox.critical(self, "Request failed", str(exc))
+            QMessageBox.critical(self, "Request failed", message)
         except Exception as exc:
             self.status_label.setText("Unexpected error.")
             self.quiz_manager.end_session()

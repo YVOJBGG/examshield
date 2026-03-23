@@ -86,6 +86,45 @@ def test_student_can_create_violation_for_own_active_attempt(
         client.delete(f"/exams/{exam_id}", headers=_auth_header(admin_token))
 
 
+def test_student_can_create_shortcut_violation_for_own_active_attempt(
+    client: TestClient, auth_tokens: dict[str, str]
+) -> None:
+    admin_token = auth_tokens["admin"]
+    student_token = auth_tokens["student"]
+    exam_id, exam_code = _create_exam_with_question(client, admin_token)
+
+    try:
+        start_response = client.post(
+            "/attempts/start",
+            headers=_auth_header(student_token),
+            json={"exam_code": exam_code},
+        )
+        assert start_response.status_code == 200
+        attempt_id = start_response.json()["id"]
+
+        create_response = client.post(
+            "/violations",
+            headers=_auth_header(student_token),
+            json={
+                "attempt_id": attempt_id,
+                "type": "desktop_switch_attempt",
+                "details": "Detected Windows+Ctrl+Right shortcut attempt during exam",
+            },
+        )
+        assert create_response.status_code == 201
+        payload = create_response.json()
+        assert payload["attempt_id"] == attempt_id
+        assert payload["type"] == "desktop_switch_attempt"
+        assert payload["details"] == "Detected Windows+Ctrl+Right shortcut attempt during exam"
+
+        with SessionLocal() as db:
+            violation = db.scalar(select(Violation).where(Violation.id == payload["id"]))
+            assert violation is not None
+            assert violation.type == "desktop_switch_attempt"
+    finally:
+        client.delete(f"/exams/{exam_id}", headers=_auth_header(admin_token))
+
+
 def test_student_cannot_create_violation_for_another_students_attempt(
     client: TestClient, auth_tokens: dict[str, str]
 ) -> None:
@@ -228,8 +267,8 @@ def test_violation_broadcast_updates_snapshot_and_pushes_admin_socket(
                 headers=_auth_header(student_token),
                 json={
                     "attempt_id": attempt_id,
-                    "type": "focus_lost",
-                    "details": "Window lost focus during exam",
+                    "type": "tab_switch_attempt",
+                    "details": "Detected Ctrl+Tab shortcut attempt during exam",
                 },
             )
             assert create_response.status_code == 201
@@ -237,7 +276,7 @@ def test_violation_broadcast_updates_snapshot_and_pushes_admin_socket(
             violation_message = websocket.receive_json()
             assert violation_message["type"] == "violation"
             assert violation_message["data"]["attempt_id"] == attempt_id
-            assert violation_message["data"]["type"] == "focus_lost"
+            assert violation_message["data"]["type"] == "tab_switch_attempt"
             assert violation_message["data"]["exam_id"] == exam_id
             assert violation_message["data"]["status"] == "in_progress"
 
@@ -247,7 +286,7 @@ def test_violation_broadcast_updates_snapshot_and_pushes_admin_socket(
         assert str(snapshot.attempt_id) == attempt_id
         assert snapshot.alert_count == 1
         assert snapshot.has_alerts is True
-        assert snapshot.last_violation_type == "focus_lost"
+        assert snapshot.last_violation_type == "tab_switch_attempt"
         assert snapshot.last_violation_at is not None
     finally:
         client.delete(f"/exams/{exam_id}", headers=_auth_header(admin_token))
