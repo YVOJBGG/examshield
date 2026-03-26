@@ -268,6 +268,11 @@ pre {
   gap: 1rem;
 }
 
+.page-heading-block {
+  display: grid;
+  gap: 0.45rem;
+}
+
 .eyebrow {
   display: inline-flex;
   margin-bottom: 0.55rem;
@@ -440,7 +445,7 @@ label {
 
 .back-link {
   display: inline-flex;
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.2rem;
   text-decoration: none;
   font-weight: 700;
   color: #1e40af;
@@ -460,6 +465,7 @@ label {
 .question-item,
 .violation-card,
 .review-meta-card,
+.review-notice-card,
 .screenshot-card,
 .lightbox-panel {
   border: 1px solid var(--border);
@@ -503,6 +509,25 @@ label {
 .review-meta-card {
   padding: 1rem;
   margin-bottom: 1rem;
+}
+
+.review-notice-card {
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.review-notice-card h4,
+.review-option-item p {
+  margin: 0;
+}
+
+.review-notice-card p {
+  margin: 0.35rem 0 0;
+  color: var(--text-muted);
+}
+
+.auto-grade-card {
+  background: rgba(239, 246, 255, 0.85);
 }
 
 .review-meta {
@@ -608,7 +633,8 @@ label {
 .neutral-badge,
 .status-pill,
 .id-chip,
-.availability-pill {
+.availability-pill,
+.grading-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -648,6 +674,21 @@ label {
 .availability-pill.unavailable {
   background: rgba(254, 226, 226, 0.95);
   color: #991b1b;
+}
+
+.grading-pill.pending {
+  background: rgba(255, 247, 237, 0.95);
+  color: var(--accent-amber);
+}
+
+.grading-pill.graded {
+  background: rgba(220, 252, 231, 0.95);
+  color: #166534;
+}
+
+.grading-pill.auto {
+  background: rgba(219, 234, 254, 0.95);
+  color: var(--accent-blue);
 }
 
 .toggle-field {
@@ -906,6 +947,51 @@ label {
 .empty-state-card p {
   max-width: 38rem;
   color: var(--text-muted);
+}
+
+.review-answer-card {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.review-option-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.review-option-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: var(--radius-md);
+  background: rgba(248, 250, 252, 0.95);
+}
+
+.review-option-item.selected {
+  border-color: rgba(37, 99, 235, 0.26);
+  background: rgba(239, 246, 255, 0.95);
+}
+
+.review-option-item.correct {
+  border-color: rgba(22, 163, 74, 0.24);
+}
+
+.review-option-item strong {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.review-option-item p {
+  color: var(--text-muted);
+}
+
+.answer-outcome-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
 }
 
 .mono {

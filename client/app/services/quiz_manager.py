@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
-from app.models.dto import StudentExam, parse_api_datetime
+from app.models.dto import StudentExam, StudentQuestion, parse_api_datetime
 from app.services.network_client import NetworkClient
-from app.storage.local_cache import LocalCache
+from app.storage.local_cache import AnswerRecord, LocalCache
 
 
 class QuizManager:
     def __init__(self, network_client: NetworkClient) -> None:
         self._network_client = network_client
         self._cache = LocalCache()
-        self._answers: dict[str, str] = {}
+        self._answers: dict[str, AnswerRecord] = {}
         self._dirty = False
         self.current_user_key: str | None = None
         self.current_exam: StudentExam | None = None
@@ -37,6 +38,50 @@ class QuizManager:
         self.current_attempt_id = None
         self.current_attempt_started_at = None
 
+    def _default_answer_for_question(self, question: StudentQuestion) -> AnswerRecord:
+        return {
+            "answer_text": "",
+            "selected_option_ids": [],
+        }
+
+    def _normalize_answer_record(self, question: StudentQuestion, value: Any) -> AnswerRecord:
+        if isinstance(value, dict):
+            answer_text = value.get("answer_text")
+            selected_option_ids = value.get("selected_option_ids", [])
+            normalized = {
+                "answer_text": str(answer_text) if answer_text is not None else "",
+                "selected_option_ids": [str(option_id) for option_id in selected_option_ids if str(option_id)],
+            }
+        elif isinstance(value, str):
+            normalized = {
+                "answer_text": value,
+                "selected_option_ids": [],
+            }
+        else:
+            normalized = self._default_answer_for_question(question)
+
+        if self.current_exam and self.current_exam.is_mcq:
+            return {
+                "answer_text": "",
+                "selected_option_ids": normalized["selected_option_ids"],
+            }
+        return {
+            "answer_text": normalized["answer_text"],
+            "selected_option_ids": [],
+        }
+
+    def _hydrate_answers(self, raw_answers: dict[str, Any]) -> dict[str, AnswerRecord]:
+        if self.current_exam is None:
+            return {}
+
+        hydrated: dict[str, AnswerRecord] = {}
+        for question in self.current_exam.questions:
+            hydrated[question.id] = self._normalize_answer_record(
+                question,
+                raw_answers.get(question.id),
+            )
+        return hydrated
+
     def load_exam(self, exam_code: str) -> StudentExam:
         if not self.current_user_key:
             raise ValueError("User session is not initialized")
@@ -50,10 +95,10 @@ class QuizManager:
         self.current_attempt_started_at = None
         cached = self._cache.load_latest_for_exam(exam.id, self.current_user_key)
         if cached is not None:
-            self._answers = dict(cached.answers)
+            self._answers = self._hydrate_answers(cached.answers)
             self._dirty = cached.dirty
         else:
-            self._answers = {}
+            self._answers = self._hydrate_answers({})
             self._dirty = False
         return exam
 
@@ -67,10 +112,10 @@ class QuizManager:
 
         cached_attempt = self._cache.load_attempt_cache(attempt_id, self.current_user_key)
         if cached_attempt is not None:
-            self._answers = dict(cached_attempt.answers)
+            self._answers = self._hydrate_answers(cached_attempt.answers)
             self._dirty = cached_attempt.dirty
         else:
-            self._answers = {}
+            self._answers = self._hydrate_answers(self._answers)
             self._dirty = False
             self._cache.save_attempt_cache(
                 attempt_id=attempt_id,
@@ -87,19 +132,49 @@ class QuizManager:
             )
         return attempt_id
 
-    def set_answer(self, question_id: str, text: str) -> None:
-        self._answers[question_id] = text
+    def set_written_answer(self, question_id: str, text: str) -> None:
+        self._answers[question_id] = {
+            "answer_text": text,
+            "selected_option_ids": [],
+        }
         self._dirty = True
         self._persist_local()
 
-    def get_answer(self, question_id: str) -> str:
-        return self._answers.get(question_id, "")
+    def get_written_answer(self, question_id: str) -> str:
+        answer = self._answers.get(question_id, {})
+        value = answer.get("answer_text")
+        return str(value) if value is not None else ""
 
-    def _answer_payload(self) -> list[dict[str, str]]:
-        return [
-            {"question_id": question_id, "answer_text": answer_text}
-            for question_id, answer_text in self._answers.items()
-        ]
+    def set_selected_option_ids(self, question_id: str, option_ids: list[str]) -> None:
+        self._answers[question_id] = {
+            "answer_text": "",
+            "selected_option_ids": [str(option_id) for option_id in option_ids if str(option_id)],
+        }
+        self._dirty = True
+        self._persist_local()
+
+    def get_selected_option_ids(self, question_id: str) -> list[str]:
+        answer = self._answers.get(question_id, {})
+        selected = answer.get("selected_option_ids", [])
+        if not isinstance(selected, list):
+            return []
+        return [str(option_id) for option_id in selected]
+
+    def _answer_payload(self) -> list[dict[str, Any]]:
+        payload: list[dict[str, Any]] = []
+        if self.current_exam is None:
+            return payload
+
+        for question in self.current_exam.questions:
+            answer = self._answers.get(question.id, self._default_answer_for_question(question))
+            payload.append(
+                {
+                    "question_id": question.id,
+                    "answer_text": answer.get("answer_text") or None,
+                    "selected_option_ids": answer.get("selected_option_ids", []),
+                }
+            )
+        return payload
 
     def _persist_local(self) -> None:
         if not self.current_exam_id or not self.current_user_key:

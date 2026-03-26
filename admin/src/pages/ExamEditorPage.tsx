@@ -467,7 +467,7 @@ function ExamEditorPage({ onAuthError }: Props) {
   return (
     <section className="page-section">
       <div className="page-header">
-        <div>
+        <div className="page-heading-block">
           <Link to="/" className="back-link">
             Back to exams
           </Link>

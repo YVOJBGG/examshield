@@ -142,6 +142,7 @@ export type AttemptScoreOut = {
   submitted_at?: string | null;
   score?: number | null;
   graded_at?: string | null;
+  grading_state?: "pending_manual_grading" | "manually_graded" | "auto_graded";
 };
 
 export type ScreenshotListItem = {

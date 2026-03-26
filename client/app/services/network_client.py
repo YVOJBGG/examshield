@@ -130,14 +130,14 @@ class NetworkClient:
     def start_attempt(self, exam_code: str) -> dict[str, Any]:
         return self._request("POST", "/attempts/start", {"exam_code": exam_code})
 
-    def autosave_answers(self, attempt_id: str, answers: list[dict[str, str]]) -> Any:
+    def autosave_answers(self, attempt_id: str, answers: list[dict[str, Any]]) -> Any:
         return self._request(
             "POST",
             "/answers/autosave",
             {"attempt_id": attempt_id, "answers": answers},
         )
 
-    def submit_answers(self, attempt_id: str, answers: list[dict[str, str]]) -> Any:
+    def submit_answers(self, attempt_id: str, answers: list[dict[str, Any]]) -> Any:
         return self._request(
             "POST",
             "/answers/submit",

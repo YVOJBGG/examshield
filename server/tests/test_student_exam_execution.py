@@ -212,6 +212,17 @@ def test_student_can_submit_mcq_exam_with_auto_grading(
         assert start_response.status_code == 200
         attempt_id = start_response.json()["id"]
 
+        autosave_response = client.post(
+            "/answers/autosave",
+            headers=student_headers,
+            json={
+                "attempt_id": attempt_id,
+                "answers": [{"question_id": question["id"], "selected_option_ids": [correct_option_id]}],
+            },
+        )
+        assert autosave_response.status_code == 200
+        assert autosave_response.json()[0]["selected_option_ids"] == [correct_option_id]
+
         submit_response = client.post(
             "/answers/submit",
             headers=student_headers,

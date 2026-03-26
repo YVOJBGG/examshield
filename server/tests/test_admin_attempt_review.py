@@ -136,6 +136,13 @@ def test_admin_can_assign_and_update_score(client: TestClient, auth_tokens: dict
         )
         assert second_response.status_code == 200
         assert second_response.json()["score"] == 19.5
+
+        detail_response = client.get(
+            f"/admin/attempts/{attempt_id}",
+            headers=_auth_header(admin_token),
+        )
+        assert detail_response.status_code == 200
+        assert detail_response.json()["grading_state"] == "manually_graded"
     finally:
         client.delete(f"/exams/{exam_id}", headers=_auth_header(admin_token))
 

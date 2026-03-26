@@ -1,0 +1,21 @@
+{
+  "attempt_id": "38c01d95-98e5-41ce-bd12-56ffa4dfb206",
+  "exam_id": "4856bf53-aa8f-46fe-a451-312fcdae88cb",
+  "user_key": "student1",
+  "answers": {
+    "a92bade5-a5e4-4b1f-ab92-feb8faf0e59c": {
+      "answer_text": "",
+      "selected_option_ids": [
+        "7783ec79-dc80-4c0d-86ff-70502cbe2601"
+      ]
+    },
+    "03a8e722-0a1e-4c42-b9b5-6c0cdee641a5": {
+      "answer_text": "",
+      "selected_option_ids": [
+        "d748ee90-3b29-49e8-943e-4fea307c985a"
+      ]
+    }
+  },
+  "last_local_save": "2026-03-26T17:40:12.906306+00:00",
+  "dirty": false
+}

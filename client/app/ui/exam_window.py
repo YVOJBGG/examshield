@@ -6,10 +6,12 @@ from datetime import datetime, timedelta, timezone
 from PyQt6.QtCore import QEvent, QTimer, pyqtSignal
 from PyQt6.QtGui import QCloseEvent
 from PyQt6.QtWidgets import (
+    QButtonGroup,
     QHBoxLayout,
     QLabel,
     QMessageBox,
     QPushButton,
+    QRadioButton,
     QScrollArea,
     QTextEdit,
     QVBoxLayout,
@@ -17,11 +19,12 @@ from PyQt6.QtWidgets import (
 )
 
 from app.config import DEV_MODE, MONITORING_HEARTBEAT_INTERVAL_MS
+from app.models.dto import StudentQuestion
 from app.services.monitoring_client import MonitoringClient
 from app.services.network_client import ApiClientError
 from app.services.quiz_manager import QuizManager
-from app.services.shortcut_detection_service import ShortcutDetectionService
 from app.services.screenshot_service import ScreenshotService
+from app.services.shortcut_detection_service import ShortcutDetectionService
 from app.services.violation_service import ViolationService
 
 
@@ -47,6 +50,8 @@ class ExamWindow(QWidget):
         self.autosave_interval_ms = autosave_interval_ms
         self.screenshot_interval_ms = screenshot_interval_ms
         self._question_inputs: dict[str, QTextEdit] = {}
+        self._question_option_groups: dict[str, QButtonGroup] = {}
+        self._question_option_buttons: dict[str, list[QRadioButton]] = {}
         self._submitted = False
         self._ending_session = False
         self._post_close_message: str | None = None
@@ -60,10 +65,13 @@ class ExamWindow(QWidget):
             raise ValueError("Attempt start time is missing.")
 
         self.setWindowTitle("ExamShield Student Exam")
-        self.resize(820, 650)
+        self.resize(900, 700)
 
         self.title_label = QLabel(f"Exam: {exam.title}")
         self.exam_id_label = QLabel(f"Exam ID: {exam.exam_code}")
+        self.exam_type_label = QLabel(
+            f"Exam type: {'MCQ' if exam.is_mcq else 'Written'}"
+        )
         self.time_limit_label = QLabel(f"Time limit: {exam.time_limit_minutes} minutes")
         self.timer_label = QLabel("Time remaining: --:--")
         self.status_label = QLabel("Attempt started.")
@@ -72,18 +80,15 @@ class ExamWindow(QWidget):
 
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)
+        content_layout.setSpacing(16)
+
+        if exam.instructions:
+            instructions_label = QLabel(f"Instructions: {exam.instructions}")
+            instructions_label.setWordWrap(True)
+            content_layout.addWidget(instructions_label)
+
         for index, question in enumerate(exam.questions, start=1):
-            question_label = QLabel(f"Q{index}. {question.text}")
-            question_label.setWordWrap(True)
-            answer_input = QTextEdit()
-            answer_input.setPlaceholderText("Type your answer here...")
-            answer_input.setPlainText(self.quiz_manager.get_answer(question.id))
-            answer_input.textChanged.connect(
-                self._build_text_changed_handler(question.id, answer_input)
-            )
-            content_layout.addWidget(question_label)
-            content_layout.addWidget(answer_input)
-            self._question_inputs[question.id] = answer_input
+            content_layout.addWidget(self._build_question_card(question, index))
 
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
@@ -106,6 +111,7 @@ class ExamWindow(QWidget):
         layout = QVBoxLayout()
         layout.addWidget(self.title_label)
         layout.addWidget(self.exam_id_label)
+        layout.addWidget(self.exam_type_label)
         layout.addWidget(self.time_limit_label)
         layout.addWidget(self.timer_label)
         layout.addWidget(scroll_area)
@@ -150,10 +156,71 @@ class ExamWindow(QWidget):
         else:
             self.status_label.setText("Synced to server")
 
+    def _build_question_card(self, question: StudentQuestion, index: int) -> QWidget:
+        card = QWidget()
+        layout = QVBoxLayout(card)
+        layout.setSpacing(8)
+
+        header = QLabel(f"Q{index}. {question.text}")
+        header.setWordWrap(True)
+        layout.addWidget(header)
+
+        meta = QLabel(f"Points: {question.points:g}")
+        layout.addWidget(meta)
+
+        if question.is_mcq:
+            helper = QLabel("Select one option:")
+            layout.addWidget(helper)
+
+            button_group = QButtonGroup(card)
+            button_group.setExclusive(True)
+            buttons: list[QRadioButton] = []
+            selected_option_ids = set(self.quiz_manager.get_selected_option_ids(question.id))
+
+            for option in question.options:
+                radio = QRadioButton(option.option_text)
+                radio.setChecked(option.id in selected_option_ids)
+                radio.toggled.connect(
+                    self._build_option_toggled_handler(question.id, option.id, radio)
+                )
+                button_group.addButton(radio)
+                layout.addWidget(radio)
+                buttons.append(radio)
+
+            self._question_option_groups[question.id] = button_group
+            self._question_option_buttons[question.id] = buttons
+        else:
+            answer_input = QTextEdit()
+            answer_input.setPlaceholderText("Type your answer here...")
+            answer_input.setPlainText(self.quiz_manager.get_written_answer(question.id))
+            answer_input.textChanged.connect(
+                self._build_text_changed_handler(question.id, answer_input)
+            )
+            layout.addWidget(answer_input)
+            self._question_inputs[question.id] = answer_input
+
+        return card
+
     def _build_text_changed_handler(self, question_id: str, answer_input: QTextEdit):
         def handler() -> None:
-            self.quiz_manager.set_answer(question_id, answer_input.toPlainText())
+            self.quiz_manager.set_written_answer(question_id, answer_input.toPlainText())
             self.status_label.setText("Saved locally")
+
+        return handler
+
+    def _build_option_toggled_handler(
+        self,
+        question_id: str,
+        option_id: str,
+        button: QRadioButton,
+    ):
+        def handler(checked: bool) -> None:
+            if checked:
+                self.quiz_manager.set_selected_option_ids(question_id, [option_id])
+                self.status_label.setText("Saved locally")
+            elif not any(item.isChecked() for item in self._question_option_buttons.get(question_id, [])):
+                self.quiz_manager.set_selected_option_ids(question_id, [])
+                self.status_label.setText("Saved locally")
 
         return handler
 
@@ -211,10 +278,21 @@ class ExamWindow(QWidget):
                 self.monitoring_client.send_submitted(status="submitted", message="Exam submitted")
             )
             self.monitoring_client.clear_session()
-            self.status_label.setText(
-                f"Submitted successfully. Attempt status: {attempt.get('status', 'submitted')}"
-            )
-            QMessageBox.information(self, "Success", "Exam submitted successfully.")
+            score = attempt.get("score")
+            if score is None:
+                self.status_label.setText(
+                    f"Submitted successfully. Attempt status: {attempt.get('status', 'submitted')}"
+                )
+                QMessageBox.information(self, "Success", "Exam submitted successfully.")
+            else:
+                self.status_label.setText(
+                    f"Submitted successfully. Score recorded: {score}"
+                )
+                QMessageBox.information(
+                    self,
+                    "Success",
+                    f"Exam submitted successfully. Recorded score: {score}",
+                )
         except ApiClientError as exc:
             self.status_label.setText(f"Submit failed: {exc}")
             QMessageBox.critical(self, "Submit failed", str(exc))
@@ -229,6 +307,9 @@ class ExamWindow(QWidget):
     def _set_editable(self, editable: bool) -> None:
         for widget in self._question_inputs.values():
             widget.setReadOnly(not editable)
+        for buttons in self._question_option_buttons.values():
+            for button in buttons:
+                button.setEnabled(editable)
 
     def _send_heartbeat(self) -> None:
         if self._submitted or self._ending_session:
