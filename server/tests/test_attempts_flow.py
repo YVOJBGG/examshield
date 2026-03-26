@@ -23,7 +23,7 @@ def _create_exam_with_question(client: TestClient, admin_token: str) -> tuple[st
     exam_response = client.post(
         "/exams",
         headers=headers,
-        json={"title": f"M3 Attempt Flow {uuid.uuid4()}", "time_limit_minutes": 45},
+        json={"title": f"M3 Attempt Flow {uuid.uuid4()}", "exam_type": "written", "time_limit_minutes": 45},
     )
     assert exam_response.status_code == 201
     exam_payload = exam_response.json()
@@ -33,7 +33,7 @@ def _create_exam_with_question(client: TestClient, admin_token: str) -> tuple[st
     question_response = client.post(
         f"/exams/{exam_id}/questions",
         headers=headers,
-        json={"text": "What is eventual consistency?"},
+        json={"text": "What is eventual consistency?", "points": 2},
     )
     assert question_response.status_code == 201
     question_id = question_response.json()["id"]
@@ -84,10 +84,14 @@ def test_student_full_attempt_flow_success(
         assert exam_payload["id"] == exam_id
         assert exam_payload["exam_code"] == exam_code
         assert "title" in exam_payload
+        assert exam_payload["exam_type"] == "written"
         assert "time_limit_minutes" in exam_payload
         assert isinstance(exam_payload["questions"], list)
         assert any(item["id"] == question_id for item in exam_payload["questions"])
-        assert all(set(item.keys()) == {"id", "text"} for item in exam_payload["questions"])
+        assert all(
+            set(item.keys()) == {"id", "text", "points", "order_index", "options"}
+            for item in exam_payload["questions"]
+        )
 
         autosave_response = client.post(
             "/answers/autosave",

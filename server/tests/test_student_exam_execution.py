@@ -17,7 +17,7 @@ def _create_exam_with_questions(client: TestClient, admin_token: str) -> tuple[s
     create_exam_response = client.post(
         "/exams",
         headers=headers,
-        json={"title": f"Student Flow Exam {uuid.uuid4()}", "time_limit_minutes": 35},
+        json={"title": f"Student Flow Exam {uuid.uuid4()}", "exam_type": "written", "time_limit_minutes": 35},
     )
     assert create_exam_response.status_code == 201
     exam_payload = create_exam_response.json()
@@ -27,7 +27,7 @@ def _create_exam_with_questions(client: TestClient, admin_token: str) -> tuple[s
     create_question_response = client.post(
         f"/exams/{exam_id}/questions",
         headers=headers,
-        json={"text": "Explain CAP theorem."},
+        json={"text": "Explain CAP theorem.", "points": 4},
     )
     assert create_question_response.status_code == 201
     question_id = create_question_response.json()["id"]
@@ -79,8 +79,11 @@ def test_student_exam_execution_flow(client: TestClient, auth_tokens: dict[str, 
         assert student_exam["id"] == exam_id
         assert student_exam["exam_code"] == exam_code
         assert "title" in student_exam
+        assert student_exam["exam_type"] == "written"
         assert "time_limit_minutes" in student_exam
-        assert all({"id", "text"} == set(question.keys()) for question in student_exam["questions"])
+        assert student_exam["instructions"] is None
+        assert all({"id", "text", "points", "order_index", "options"} == set(question.keys()) for question in student_exam["questions"])
+        assert student_exam["questions"][0]["options"] == []
 
         autosave_response = client.post(
             "/answers/autosave",
@@ -119,6 +122,7 @@ def test_student_exam_execution_flow(client: TestClient, auth_tokens: dict[str, 
         assert submit_body["answers_saved"] == 1
         assert submit_body["attempt"]["status"] == "submitted"
         assert submit_body["attempt"]["submitted_at"] is not None
+        assert submit_body["attempt"]["score"] is None
 
         autosave_after_submit_response = client.post(
             "/answers/autosave",
@@ -131,6 +135,98 @@ def test_student_exam_execution_flow(client: TestClient, auth_tokens: dict[str, 
         assert autosave_after_submit_response.status_code == 400
     finally:
         client.delete(f"/exams/{exam_id}", headers=_auth_header(admin_token))
+
+
+def test_student_exam_fetch_hides_correct_answers_for_mcq(
+    client: TestClient, auth_tokens: dict[str, str]
+) -> None:
+    admin_headers = _auth_header(auth_tokens["admin"])
+    student_headers = _auth_header(auth_tokens["student"])
+    exam_response = client.post(
+        "/exams",
+        headers=admin_headers,
+        json={"title": f"MCQ Student View {uuid.uuid4()}", "exam_type": "mcq", "time_limit_minutes": 15},
+    )
+    assert exam_response.status_code == 201
+    exam = exam_response.json()
+
+    question_response = client.post(
+        f"/exams/{exam['id']}/questions",
+        headers=admin_headers,
+        json={
+            "text": "Which layer handles routing?",
+            "options": [
+                {"option_text": "Network", "is_correct": True},
+                {"option_text": "Presentation", "is_correct": False},
+            ],
+        },
+    )
+    assert question_response.status_code == 201
+
+    try:
+        response = client.get(f"/student/exams/{exam['exam_code']}", headers=student_headers)
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["exam_type"] == "mcq"
+        assert "is_correct" not in payload["questions"][0]["options"][0]
+        assert len(payload["questions"][0]["options"]) == 2
+    finally:
+        client.delete(f"/exams/{exam['id']}", headers=admin_headers)
+
+
+def test_student_can_submit_mcq_exam_with_auto_grading(
+    client: TestClient, auth_tokens: dict[str, str]
+) -> None:
+    admin_headers = _auth_header(auth_tokens["admin"])
+    student_headers = _auth_header(auth_tokens["student"])
+    exam_response = client.post(
+        "/exams",
+        headers=admin_headers,
+        json={"title": f"MCQ Submit {uuid.uuid4()}", "exam_type": "mcq", "time_limit_minutes": 20},
+    )
+    assert exam_response.status_code == 201
+    exam = exam_response.json()
+
+    question_response = client.post(
+        f"/exams/{exam['id']}/questions",
+        headers=admin_headers,
+        json={
+            "text": "Which status code means created?",
+            "points": 3,
+            "options": [
+                {"option_text": "200", "is_correct": False},
+                {"option_text": "201", "is_correct": True},
+            ],
+        },
+    )
+    assert question_response.status_code == 201
+    question = question_response.json()
+    correct_option_id = next(option["id"] for option in question["options"] if option["is_correct"])
+
+    try:
+        start_response = client.post(
+            "/attempts/start",
+            headers=student_headers,
+            json={"exam_code": exam["exam_code"]},
+        )
+        assert start_response.status_code == 200
+        attempt_id = start_response.json()["id"]
+
+        submit_response = client.post(
+            "/answers/submit",
+            headers=student_headers,
+            json={
+                "attempt_id": attempt_id,
+                "answers": [{"question_id": question["id"], "selected_option_ids": [correct_option_id]}],
+            },
+        )
+        assert submit_response.status_code == 200
+        payload = submit_response.json()
+        assert payload["attempt"]["status"] == "submitted"
+        assert payload["attempt"]["score"] == 3
+        assert payload["attempt"]["graded_at"] is not None
+    finally:
+        client.delete(f"/exams/{exam['id']}", headers=admin_headers)
 
 
 def test_student_exam_lookup_blocks_unavailable_exam_without_active_attempt(

@@ -2,7 +2,7 @@ import uuid
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models import Attempt, Exam, Question
 
@@ -68,7 +68,10 @@ def get_student_exam_content(db: Session, user_id: uuid.UUID, exam_code: str) ->
     _validate_student_exam_entry(db, user_id, exam)
     questions = list(
         db.scalars(
-            select(Question).where(Question.exam_id == exam.id).order_by(Question.created_at.asc())
+            select(Question)
+            .options(selectinload(Question.options))
+            .where(Question.exam_id == exam.id)
+            .order_by(Question.order_index.asc(), Question.created_at.asc())
         ).all()
     )
     return exam, questions

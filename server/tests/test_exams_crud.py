@@ -15,13 +15,15 @@ def test_admin_exams_crud_flow(client: TestClient, auth_tokens: dict[str, str]) 
     create_response = client.post(
         "/exams",
         headers=admin_headers,
-        json={"title": unique_title, "time_limit_minutes": 30},
+        json={"title": unique_title, "exam_type": "written", "time_limit_minutes": 30},
     )
     assert create_response.status_code == 201
     exam = create_response.json()
     exam_id = exam["id"]
     assert exam["title"] == unique_title
+    assert exam["exam_type"] == "written"
     assert exam["time_limit_minutes"] == 30
+    assert exam["instructions"] is None
     assert exam["is_available"] is True
     assert exam["exam_code"].isdigit()
     assert len(exam["exam_code"]) == 6
@@ -33,14 +35,21 @@ def test_admin_exams_crud_flow(client: TestClient, auth_tokens: dict[str, str]) 
     get_response = client.get(f"/exams/{exam_id}", headers=admin_headers)
     assert get_response.status_code == 200
     assert get_response.json()["id"] == exam_id
+    assert get_response.json()["questions"] == []
 
     update_response = client.put(
         f"/exams/{exam_id}",
         headers=admin_headers,
-        json={"title": f"{unique_title} Updated", "time_limit_minutes": 45, "is_available": False},
+        json={
+            "title": f"{unique_title} Updated",
+            "instructions": "Read every prompt carefully.",
+            "time_limit_minutes": 45,
+            "is_available": False,
+        },
     )
     assert update_response.status_code == 200
     assert update_response.json()["title"].endswith("Updated")
+    assert update_response.json()["instructions"] == "Read every prompt carefully."
     assert update_response.json()["time_limit_minutes"] == 45
     assert update_response.json()["is_available"] is False
 
@@ -55,7 +64,7 @@ def test_admin_exams_crud_flow(client: TestClient, auth_tokens: dict[str, str]) 
     ("method", "path", "body"),
     [
         ("get", "/exams", None),
-        ("post", "/exams", {"title": "Denied Exam", "time_limit_minutes": 20}),
+        ("post", "/exams", {"title": "Denied Exam", "exam_type": "written", "time_limit_minutes": 20}),
         ("get", f"/exams/{uuid.uuid4()}", None),
         ("put", f"/exams/{uuid.uuid4()}", {"title": "Denied", "time_limit_minutes": 10}),
         ("delete", f"/exams/{uuid.uuid4()}", None),
@@ -95,7 +104,7 @@ def test_non_admin_cannot_change_exam_availability(
     create_response = client.post(
         "/exams",
         headers=admin_headers,
-        json={"title": f"Availability Guard {uuid.uuid4()}", "time_limit_minutes": 25},
+        json={"title": f"Availability Guard {uuid.uuid4()}", "exam_type": "written", "time_limit_minutes": 25},
     )
     assert create_response.status_code == 201
     exam_id = create_response.json()["id"]

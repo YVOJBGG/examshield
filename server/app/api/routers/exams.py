@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import require_admin
 from app.db.session import get_db
-from app.schemas.exam import ExamCreate, ExamOut, ExamUpdate
+from app.schemas.exam import ExamCreate, ExamDetailOut, ExamOut, ExamUpdate
 from app.schemas.question import QuestionCreate, QuestionOut, QuestionUpdate
 from app.services.exams_service import create_exam, delete_exam, get_exam, list_exams, update_exam
 from app.services.questions_service import (
@@ -29,8 +29,8 @@ def post_exam(payload: ExamCreate, db: Session = Depends(get_db)) -> ExamOut:
     return create_exam(db, payload)
 
 
-@router.get("/{exam_id}", response_model=ExamOut, dependencies=[Depends(require_admin)])
-def get_exam_by_id(exam_id: uuid.UUID, db: Session = Depends(get_db)) -> ExamOut:
+@router.get("/{exam_id}", response_model=ExamDetailOut, dependencies=[Depends(require_admin)])
+def get_exam_by_id(exam_id: uuid.UUID, db: Session = Depends(get_db)) -> ExamDetailOut:
     return get_exam(db, exam_id)
 
 

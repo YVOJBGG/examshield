@@ -20,3 +20,5 @@ class AttemptOut(BaseModel):
     started_at: datetime
     submitted_at: datetime | None
     status: str
+    score: float | None
+    graded_at: datetime | None

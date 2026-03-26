@@ -8,7 +8,8 @@ from app.schemas.attempt import AttemptOut
 
 class AnswerAutosaveItem(BaseModel):
     question_id: uuid.UUID
-    answer_text: str
+    answer_text: str | None = None
+    selected_option_ids: list[uuid.UUID] = Field(default_factory=list)
 
 
 class AnswerAutosaveRequest(BaseModel):
@@ -27,7 +28,8 @@ class AnswerOut(BaseModel):
     id: uuid.UUID
     attempt_id: uuid.UUID
     question_id: uuid.UUID
-    answer_text: str
+    answer_text: str | None
+    selected_option_ids: list[uuid.UUID]
     saved_at: datetime
 
 

@@ -3,10 +3,32 @@ from secrets import randbelow
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
-from app.models import Exam
+from app.models import Exam, Question
 from app.schemas.exam import ExamCreate, ExamUpdate
+
+
+def _normalize_title(title: str) -> str:
+    normalized = title.strip()
+    if not normalized:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="title is required")
+    return normalized
+
+
+def _normalize_instructions(instructions: str | None) -> str | None:
+    if instructions is None:
+        return None
+    normalized = instructions.strip()
+    return normalized or None
+
+
+def _validate_time_limit(time_limit_minutes: int) -> None:
+    if time_limit_minutes <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="time_limit_minutes must be greater than 0",
+        )
 
 
 def list_exams(db: Session) -> list[Exam]:
@@ -22,15 +44,13 @@ def _generate_unique_exam_code(db: Session) -> str:
 
 
 def create_exam(db: Session, payload: ExamCreate) -> Exam:
-    if payload.time_limit_minutes <= 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="time_limit_minutes must be greater than 0",
-        )
+    _validate_time_limit(payload.time_limit_minutes)
 
     exam = Exam(
         exam_code=_generate_unique_exam_code(db),
-        title=payload.title.strip(),
+        title=_normalize_title(payload.title),
+        exam_type=payload.exam_type,
+        instructions=_normalize_instructions(payload.instructions),
         time_limit_minutes=payload.time_limit_minutes,
         is_available=payload.is_available,
     )
@@ -41,7 +61,11 @@ def create_exam(db: Session, payload: ExamCreate) -> Exam:
 
 
 def get_exam(db: Session, exam_id: uuid.UUID) -> Exam:
-    exam = db.scalar(select(Exam).where(Exam.id == exam_id))
+    exam = db.scalar(
+        select(Exam)
+        .options(selectinload(Exam.questions).selectinload(Question.options))
+        .where(Exam.id == exam_id)
+    )
     if exam is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exam not found")
     return exam
@@ -50,22 +74,28 @@ def get_exam(db: Session, exam_id: uuid.UUID) -> Exam:
 def update_exam(db: Session, exam_id: uuid.UUID, payload: ExamUpdate) -> Exam:
     exam = get_exam(db, exam_id)
 
-    if payload.time_limit_minutes is not None and payload.time_limit_minutes <= 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="time_limit_minutes must be greater than 0",
-        )
+    if payload.time_limit_minutes is not None:
+        _validate_time_limit(payload.time_limit_minutes)
 
     if payload.title is not None:
-        exam.title = payload.title.strip()
+        exam.title = _normalize_title(payload.title)
+    if payload.exam_type is not None:
+        if payload.exam_type != exam.exam_type and exam.questions:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="exam_type cannot be changed after questions have been created",
+            )
+        exam.exam_type = payload.exam_type
     if payload.time_limit_minutes is not None:
         exam.time_limit_minutes = payload.time_limit_minutes
+    if payload.instructions is not None:
+        exam.instructions = _normalize_instructions(payload.instructions)
     if payload.is_available is not None:
         exam.is_available = payload.is_available
 
     db.commit()
     db.refresh(exam)
-    return exam
+    return get_exam(db, exam_id)
 
 
 def delete_exam(db: Session, exam_id: uuid.UUID) -> None:

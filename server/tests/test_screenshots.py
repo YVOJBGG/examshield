@@ -25,7 +25,7 @@ def _create_exam_with_question(client: TestClient, admin_token: str) -> tuple[st
     response = client.post(
         "/exams",
         headers=_auth_header(admin_token),
-        json={"title": f"M5 Screenshots {uuid.uuid4()}", "time_limit_minutes": 50},
+        json={"title": f"M5 Screenshots {uuid.uuid4()}", "exam_type": "written", "time_limit_minutes": 50},
     )
     assert response.status_code == 201
     payload = response.json()

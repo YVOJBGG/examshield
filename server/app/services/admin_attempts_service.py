@@ -5,14 +5,23 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import Answer, Attempt, Exam, Question, User
+from app.models import Answer, Attempt, Exam, Question
 from app.schemas.review import (
     AttemptReviewAnswerItem,
     AttemptReviewDetail,
     AttemptReviewExam,
     AttemptReviewListItem,
+    AttemptReviewOptionItem,
     AttemptReviewStudent,
 )
+
+
+def _grading_state(attempt: Attempt) -> str:
+    if attempt.exam.exam_type == "mcq":
+        return "auto_graded"
+    if attempt.score is None:
+        return "pending_manual_grading"
+    return "manually_graded"
 
 
 def _get_exam(db: Session, exam_id: uuid.UUID) -> Exam:
@@ -28,7 +37,7 @@ def _get_attempt(db: Session, attempt_id: uuid.UUID) -> Attempt:
         .options(
             selectinload(Attempt.user),
             selectinload(Attempt.exam),
-            selectinload(Attempt.answers).selectinload(Answer.question),
+            selectinload(Attempt.answers).selectinload(Answer.question).selectinload(Question.options),
         )
         .where(Attempt.id == attempt_id)
     )
@@ -42,7 +51,7 @@ def list_submitted_attempts_for_exam(db: Session, exam_id: uuid.UUID) -> list[At
     attempts = list(
         db.scalars(
             select(Attempt)
-            .options(selectinload(Attempt.user))
+            .options(selectinload(Attempt.user), selectinload(Attempt.exam))
             .where(Attempt.exam_id == exam_id, Attempt.status == "submitted")
             .order_by(Attempt.submitted_at.desc(), Attempt.started_at.desc())
         ).all()
@@ -55,6 +64,7 @@ def list_submitted_attempts_for_exam(db: Session, exam_id: uuid.UUID) -> list[At
             started_at=item.started_at,
             submitted_at=item.submitted_at,
             score=item.score,
+            grading_state=_grading_state(item),
         )
         for item in attempts
     ]
@@ -70,20 +80,47 @@ def get_attempt_review_detail(db: Session, attempt_id: uuid.UUID) -> AttemptRevi
 
     questions = list(
         db.scalars(
-            select(Question).where(Question.exam_id == attempt.exam_id).order_by(Question.created_at.asc())
+            select(Question)
+            .options(selectinload(Question.options))
+            .where(Question.exam_id == attempt.exam_id)
+            .order_by(Question.order_index.asc(), Question.created_at.asc())
         ).all()
     )
     answers_by_question = {answer.question_id: answer for answer in attempt.answers}
-    answer_items = [
-        AttemptReviewAnswerItem(
-            question_id=question.id,
-            question_text=question.text,
-            answer_text=answers_by_question.get(question.id).answer_text
-            if answers_by_question.get(question.id) is not None
-            else None,
+    answer_items: list[AttemptReviewAnswerItem] = []
+
+    for question in questions:
+        answer = answers_by_question.get(question.id)
+        selected_option_ids = answer.selected_option_ids or [] if answer is not None else []
+        is_correct = None
+        awarded_points = None
+
+        if attempt.exam.exam_type == "mcq":
+            correct_ids = {str(option.id) for option in question.options if option.is_correct}
+            is_correct = set(selected_option_ids) == correct_ids
+            awarded_points = question.points if is_correct else 0.0
+
+        answer_items.append(
+            AttemptReviewAnswerItem(
+                question_id=question.id,
+                question_text=question.text,
+                points=question.points,
+                order_index=question.order_index,
+                answer_text=answer.answer_text if answer is not None else None,
+                selected_option_ids=selected_option_ids,
+                options=[
+                    AttemptReviewOptionItem(
+                        id=option.id,
+                        option_text=option.option_text,
+                        order_index=option.order_index,
+                        is_correct=option.is_correct,
+                    )
+                    for option in question.options
+                ],
+                is_correct=is_correct,
+                awarded_points=awarded_points,
+            )
         )
-        for question in questions
-    ]
 
     return AttemptReviewDetail(
         attempt_id=attempt.id,
@@ -92,11 +129,14 @@ def get_attempt_review_detail(db: Session, attempt_id: uuid.UUID) -> AttemptRevi
         submitted_at=attempt.submitted_at,
         score=attempt.score,
         graded_at=attempt.graded_at,
+        grading_state=_grading_state(attempt),
         student=AttemptReviewStudent(id=attempt.user.id, username=attempt.user.username),
         exam=AttemptReviewExam(
             id=attempt.exam.id,
             exam_code=attempt.exam.exam_code,
             title=attempt.exam.title,
+            exam_type=attempt.exam.exam_type,
+            instructions=attempt.exam.instructions,
         ),
         answers=answer_items,
     )
@@ -108,6 +148,11 @@ def update_attempt_score(db: Session, attempt_id: uuid.UUID, score: float, admin
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only submitted attempts can be graded",
+        )
+    if attempt.exam.exam_type != "written":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only written exam attempts can be graded manually",
         )
 
     attempt.score = score
