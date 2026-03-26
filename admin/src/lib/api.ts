@@ -25,31 +25,59 @@ export type Exam = {
   id: string;
   exam_code: string;
   title: string;
+  exam_type: "mcq" | "written";
   time_limit_minutes: number;
+  instructions?: string | null;
   is_available: boolean;
   created_at: string;
 };
 
 export type ExamCreate = {
   title: string;
+  exam_type: "mcq" | "written";
   time_limit_minutes: number;
+  instructions?: string | null;
   is_available?: boolean;
 };
 
 export type ExamUpdate = Partial<ExamCreate>;
 
+export type QuestionOption = {
+  id: string;
+  question_id: string;
+  option_text: string;
+  is_correct: boolean;
+  order_index: number;
+};
+
 export type Question = {
   id: string;
   exam_id: string;
   text: string;
+  points: number;
+  order_index: number;
+  options: QuestionOption[];
   created_at: string;
+};
+
+export type QuestionOptionCreate = {
+  option_text: string;
+  is_correct: boolean;
+  order_index?: number;
 };
 
 export type QuestionCreate = {
   text: string;
+  points: number;
+  order_index?: number;
+  options?: QuestionOptionCreate[];
 };
 
 export type QuestionUpdate = Partial<QuestionCreate>;
+
+export type ExamDetail = Exam & {
+  questions: Question[];
+};
 
 export type ViolationListItem = {
   id: string;
@@ -66,12 +94,24 @@ export type ExamAttemptListItem = {
   started_at: string;
   submitted_at?: string | null;
   score?: number | null;
+  grading_state?: "pending_manual_grading" | "manually_graded" | "auto_graded";
 };
 
 export type AttemptReviewAnswer = {
   question_id: string;
   question_text: string;
+  points: number;
+  order_index: number;
   answer_text?: string | null;
+  selected_option_ids?: string[];
+  options?: Array<{
+    id: string;
+    option_text: string;
+    order_index: number;
+    is_correct: boolean;
+  }>;
+  is_correct?: boolean | null;
+  awarded_points?: number | null;
 };
 
 export type AttemptReviewDetail = {
@@ -81,6 +121,7 @@ export type AttemptReviewDetail = {
   submitted_at?: string | null;
   score?: number | null;
   graded_at?: string | null;
+  grading_state?: "pending_manual_grading" | "manually_graded" | "auto_graded";
   student: {
     id: string;
     username: string;
@@ -89,6 +130,8 @@ export type AttemptReviewDetail = {
     id: string;
     exam_code: string;
     title: string;
+    exam_type: "mcq" | "written";
+    instructions?: string | null;
   };
   answers: AttemptReviewAnswer[];
 };
@@ -210,6 +253,14 @@ export async function getExam(examId: string): Promise<Exam> {
     throw new ApiError(response.status, await readErrorMessage(response, "Could not load exam"));
   }
   return parseJson<Exam>(response);
+}
+
+export async function getExamDetail(examId: string): Promise<ExamDetail> {
+  const response = await authFetch(`/exams/${examId}`);
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not load exam"));
+  }
+  return parseJson<ExamDetail>(response);
 }
 
 export async function updateExam(examId: string, payload: ExamUpdate): Promise<Exam> {

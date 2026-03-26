@@ -175,6 +175,7 @@ function App() {
             <Routes>
               <Route path="/" element={<ExamsListPage onAuthError={handleAuthError} />} />
               <Route path="/monitoring" element={<LiveMonitoringPage onAuthError={handleAuthError} />} />
+              <Route path="/exams/new" element={<ExamEditorPage onAuthError={handleAuthError} />} />
               <Route path="/exams/:examId" element={<ExamEditorPage onAuthError={handleAuthError} />} />
               <Route
                 path="/exams/:examId/submissions"

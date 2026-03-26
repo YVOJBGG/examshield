@@ -1,21 +1,31 @@
-import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { ApiError, createExam, deleteExam, listExams, type Exam } from "../lib/api";
+import { ApiError, deleteExam, listExams, type Exam } from "../lib/api";
 
 type Props = {
   onAuthError: (message: string) => void;
 };
+
+function formatExamType(examType: Exam["exam_type"]): string {
+  return examType === "mcq" ? "MCQ" : "Written";
+}
 
 function ExamsListPage({ onAuthError }: Props) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exams, setExams] = useState<Exam[]>([]);
-  const [title, setTitle] = useState("");
-  const [timeLimit, setTimeLimit] = useState(60);
-  const [submitting, setSubmitting] = useState(false);
+
+  const summary = useMemo(
+    () => ({
+      total: exams.length,
+      available: exams.filter((exam) => exam.is_available).length,
+      mcq: exams.filter((exam) => exam.exam_type === "mcq").length,
+      written: exams.filter((exam) => exam.exam_type === "written").length,
+    }),
+    [exams],
+  );
 
   async function loadExams() {
     setLoading(true);
@@ -38,30 +48,11 @@ function ExamsListPage({ onAuthError }: Props) {
     void loadExams();
   }, []);
 
-  async function onCreateExam(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSubmitting(true);
-    setError(null);
-    try {
-      await createExam({ title, time_limit_minutes: timeLimit });
-      setTitle("");
-      setTimeLimit(60);
-      await loadExams();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Could not create exam";
-      setError(message);
-      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-        onAuthError("Authentication failed or insufficient permissions. Please login as admin.");
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   async function onDeleteExam(examId: string) {
     if (!window.confirm("Delete this exam and all related questions?")) {
       return;
     }
+
     setError(null);
     try {
       await deleteExam(examId);
@@ -80,115 +71,114 @@ function ExamsListPage({ onAuthError }: Props) {
       <div className="page-header">
         <div>
           <span className="eyebrow">Exam Management</span>
-          <h2>Assessments</h2>
+          <h2>Exam Builder</h2>
           <p className="page-intro">
-            Create new exams, share their teacher-facing Exam IDs, and jump into editing or review
-            workflows.
+            Create polished MCQ or written assessments, keep structure consistent, and jump back
+            into any exam to refine its content.
           </p>
+        </div>
+        <div className="actions">
+          <button type="button" onClick={() => navigate("/exams/new")}>
+            Create New Exam
+          </button>
         </div>
       </div>
 
       <div className="stats-grid">
         <article className="stat-card">
           <span className="stat-label">Total exams</span>
-          <strong>{exams.length}</strong>
-          <p>All configured assessments available to students.</p>
+          <strong>{summary.total}</strong>
+          <p>Structured assessments currently configured in the portal.</p>
         </article>
         <article className="stat-card">
           <span className="stat-label">Available now</span>
-          <strong>{exams.filter((exam) => exam.is_available).length}</strong>
-          <p>Exams students can currently start for the first time.</p>
+          <strong>{summary.available}</strong>
+          <p>Exams students can currently enter for a new attempt.</p>
         </article>
         <article className="stat-card">
-          <span className="stat-label">Default timer</span>
-          <strong>{timeLimit} min</strong>
-          <p>New exams start with this duration unless you adjust it before saving.</p>
+          <span className="stat-label">MCQ exams</span>
+          <strong>{summary.mcq}</strong>
+          <p>Auto-graded assessments with answer options and correct choices.</p>
+        </article>
+        <article className="stat-card">
+          <span className="stat-label">Written exams</span>
+          <strong>{summary.written}</strong>
+          <p>Open-response assessments designed for manual grading workflows.</p>
         </article>
       </div>
 
-      <section className="panel">
-        <div className="section-heading">
-          <div>
-            <h3>Create exam</h3>
-            <p>Set a title and time limit. The server will generate a shareable Exam ID.</p>
-          </div>
-        </div>
-
-        <form className="inline-form" onSubmit={onCreateExam}>
-          <input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Exam title"
-            required
-          />
-          <input
-            type="number"
-            min={1}
-            value={timeLimit}
-            onChange={(event) => setTimeLimit(Number(event.target.value))}
-            required
-          />
-          <button type="submit" disabled={submitting}>
-            {submitting ? "Creating..." : "Create New Exam"}
-          </button>
-        </form>
-      </section>
+      {error && <p className="error">Error: {error}</p>}
 
       <section className="panel">
         <div className="section-heading">
           <div>
-            <h3>Existing exams</h3>
-            <p>Open an exam to edit questions or review submissions.</p>
+            <h3>Assessment library</h3>
+            <p>Each exam shows its type, public ID, student availability, and core settings.</p>
           </div>
         </div>
 
         {loading && <p className="state-text">Loading exams...</p>}
-        {error && <p className="error">Error: {error}</p>}
 
         {!loading && (
-          <div className="table-scroll">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Exam ID</th>
-                  <th>Title</th>
-                  <th>Availability</th>
-                  <th>Time Limit</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {exams.map((exam) => (
-                  <tr key={exam.id}>
-                    <td>
-                      <span className="mono id-chip">{exam.exam_code}</span>
-                    </td>
-                    <td>
-                      <strong>{exam.title}</strong>
-                    </td>
-                    <td>
-                      <span className={exam.is_available ? "availability-pill available" : "availability-pill unavailable"}>
-                        {exam.is_available ? "Available" : "Unavailable"}
-                      </span>
-                    </td>
-                    <td>{exam.time_limit_minutes} min</td>
-                    <td className="actions">
-                      <button type="button" className="secondary-button" onClick={() => navigate(`/exams/${exam.id}`)}>
-                        Open
-                      </button>
-                      <button type="button" className="danger" onClick={() => void onDeleteExam(exam.id)}>
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {exams.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="empty-cell">No exams yet.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <div className="exam-grid">
+            {exams.map((exam) => (
+              <article key={exam.id} className="exam-overview-card">
+                <div className="exam-overview-header">
+                  <div className="exam-overview-title">
+                    <span className={`type-badge ${exam.exam_type}`}>{formatExamType(exam.exam_type)}</span>
+                    <h3>{exam.title}</h3>
+                  </div>
+                  <span className={exam.is_available ? "availability-pill available" : "availability-pill unavailable"}>
+                    {exam.is_available ? "Available" : "Unavailable"}
+                  </span>
+                </div>
+
+                <div className="exam-metadata-grid">
+                  <p>
+                    <span>Exam ID</span>
+                    <strong className="mono">{exam.exam_code}</strong>
+                  </p>
+                  <p>
+                    <span>Time limit</span>
+                    <strong>{exam.time_limit_minutes} min</strong>
+                  </p>
+                  <p>
+                    <span>Builder mode</span>
+                    <strong>{formatExamType(exam.exam_type)}</strong>
+                  </p>
+                  <p>
+                    <span>Instructions</span>
+                    <strong>{exam.instructions?.trim() ? "Included" : "Not set"}</strong>
+                  </p>
+                </div>
+
+                <div className="exam-card-actions">
+                  <button type="button" className="secondary-button" onClick={() => navigate(`/exams/${exam.id}`)}>
+                    Open Builder
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => navigate(`/exams/${exam.id}/submissions`)}
+                  >
+                    View Submissions
+                  </button>
+                  <button type="button" className="danger" onClick={() => void onDeleteExam(exam.id)}>
+                    Delete
+                  </button>
+                </div>
+              </article>
+            ))}
+
+            {exams.length === 0 && (
+              <div className="empty-state-card">
+                <h3>No exams yet</h3>
+                <p>Start with a written or MCQ assessment and build the full structure from one editor.</p>
+                <button type="button" onClick={() => navigate("/exams/new")}>
+                  Create your first exam
+                </button>
+              </div>
+            )}
           </div>
         )}
       </section>
