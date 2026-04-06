@@ -52,6 +52,8 @@ npm run dev
   - durations
   - violations and screenshots
   - question-level analytics and MCQ option distributions when available
+  - additional insights such as longest estimated question, most skipped question, and top flagged attempts
+- Question timing labels are shown as estimated when the backend reports approximate timing data.
 
 ## Manual test
 
@@ -59,7 +61,7 @@ npm run dev
 2. Open `/` and create or open an exam.
 3. Click `End Exam` from the exams list or exam editor and confirm the warning dialog.
 4. Verify the button shows a loading state and the app navigates to `/exams/:examId/analytics`.
-5. Verify the analytics page shows the success banner and exam metrics from the backend.
+5. Verify the analytics page shows the success banner, top summary cards, question analytics, and MCQ percentage bars when applicable.
 6. Return to the exams list and confirm the exam now shows `Ended`.
 7. Open `/monitoring`.
 8. Start a student exam from the client.

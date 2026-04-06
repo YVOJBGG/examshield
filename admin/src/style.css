@@ -983,6 +983,11 @@ label {
   gap: 0.9rem;
 }
 
+.analytics-insight-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
 .analytics-top-item {
   display: flex;
   align-items: center;
@@ -997,6 +1002,52 @@ label {
 
 .analytics-question-metadata {
   margin-bottom: 1rem;
+}
+
+.analytics-empty-state {
+  min-height: 220px;
+}
+
+.analytics-mcq-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.analytics-option-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.analytics-option-row {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.analytics-option-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.analytics-option-head span {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.analytics-option-bar-track {
+  width: 100%;
+  height: 0.8rem;
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.95);
+  overflow: hidden;
+}
+
+.analytics-option-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1d4ed8 0%, #60a5fa 100%);
 }
 
 .type-badge {
