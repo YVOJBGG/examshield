@@ -11,7 +11,10 @@ from app.db.base import Base
 class Attempt(Base):
     __tablename__ = "attempts"
     __table_args__ = (
-        CheckConstraint("status IN ('in_progress', 'submitted', 'cancelled')", name="ck_attempts_status"),
+        CheckConstraint(
+            "status IN ('in_progress', 'submitted', 'force_submitted', 'cancelled')",
+            name="ck_attempts_status",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

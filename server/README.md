@@ -373,3 +373,115 @@ List one attempt's violations:
 curl -s http://127.0.0.1:8000/violations/attempt/<attempt_uuid> \
   -H "Authorization: Bearer <admin_token>"
 ```
+
+## Admin exam finalization and analytics
+
+Scope for this feature:
+- Admins can explicitly end one exam.
+- Active attempts for that exam are force-submitted immediately.
+- Analytics are available per exam from persisted attempts, answers, violations, screenshots, and question data.
+
+### Endpoints
+
+1. `POST /admin/exams/{exam_id}/end`
+- Auth: admin bearer token required (`require_admin`).
+- Behavior:
+  - validates the exam exists
+  - marks the exam as ended with `is_ended=true` and `ended_at=<now>`
+  - updates all `in_progress` attempts for that exam to `force_submitted`
+  - sets `submitted_at` for those attempts when missing
+- Response:
+```json
+{
+  "exam_id": "00000000-0000-0000-0000-000000000010",
+  "ended_at": "2026-04-06T12:00:00Z",
+  "updated_attempts": 12,
+  "already_completed_attempts": 5,
+  "status": "ended"
+}
+```
+
+2. `GET /admin/exams/{exam_id}/analytics`
+- Auth: admin bearer token required (`require_admin`).
+- Response shape:
+```json
+{
+  "exam": {
+    "exam_id": "00000000-0000-0000-0000-000000000010",
+    "exam_title": "Database Systems Midterm",
+    "total_attempts": 18,
+    "completed_attempts": 18,
+    "force_submitted_attempts": 3,
+    "submission_rate_percent": 100.0,
+    "average_exam_duration_seconds": 2412.5,
+    "min_exam_duration_seconds": 1800.0,
+    "max_exam_duration_seconds": 2700.0,
+    "median_exam_duration_seconds": 2400.0,
+    "average_violations_per_attempt": 0.67,
+    "total_violations": 12,
+    "total_screenshots": 30,
+    "most_common_violation_type": "focus_lost",
+    "attempts_with_highest_violation_count": [
+      {
+        "attempt_id": "00000000-0000-0000-0000-000000000111",
+        "username": "student7",
+        "violation_count": 4
+      }
+    ],
+    "average_questions_answered_per_attempt": 7.94,
+    "attempts_with_violations_percent": 44.44,
+    "hardest_question": {
+      "question_id": "00000000-0000-0000-0000-000000000210",
+      "question_text": "Which SQL clause filters rows?",
+      "metric": "lowest_correct_rate_percent",
+      "value": 52.94
+    },
+    "ended_at": "2026-04-06T12:00:00Z",
+    "is_ended": true
+  },
+  "questions": [
+    {
+      "question_id": "00000000-0000-0000-0000-000000000210",
+      "question_text": "Which SQL clause filters rows?",
+      "average_time_spent_seconds": 133.2,
+      "total_answers": 17,
+      "unanswered_count": 1,
+      "mcq_option_distribution": [
+        {
+          "option_id": "00000000-0000-0000-0000-000000000310",
+          "option_text": "WHERE",
+          "count": 9,
+          "percentage": 52.94
+        }
+      ],
+      "correct_rate_percent": 52.94
+    }
+  ],
+  "metadata": {
+    "question_time_method": "approx_saved_at_deltas",
+    "question_alert_method": "not_available"
+  }
+}
+```
+
+### Approximation notes
+
+- `question_time_method=approx_saved_at_deltas` means per-question time is estimated from answer `saved_at` ordering relative to `attempt.started_at`.
+- The backend stores one current answer row per `(attempt_id, question_id)`, so this timing is an approximation from observed save timestamps rather than exact navigation telemetry.
+- `question_alert_method=not_available` means violations are stored at attempt level only; the API does not invent exact per-question alert counts when the schema cannot support them.
+
+### curl examples
+
+End one exam:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/admin/exams/<exam_uuid>/end \
+  -H "Authorization: Bearer <admin_token>"
+```
+
+Fetch analytics for one exam:
+
+```bash
+curl -s http://127.0.0.1:8000/admin/exams/<exam_uuid>/analytics \
+  -H "Authorization: Bearer <admin_token>"
+```

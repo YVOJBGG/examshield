@@ -481,6 +481,11 @@ function ExamEditorPage({ onAuthError }: Props) {
 
         <div className="actions">
           {!isCreateMode && exam ? (
+            <button type="button" className="secondary-button" onClick={() => navigate(`/exams/${exam.id}/analytics`)}>
+              View Analytics
+            </button>
+          ) : null}
+          {!isCreateMode && exam ? (
             <button type="button" className="secondary-button" onClick={() => navigate(`/exams/${exam.id}/submissions`)}>
               View Submissions
             </button>

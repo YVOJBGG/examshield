@@ -7,6 +7,16 @@ from app.schemas.answer import (
 )
 from app.schemas.attempt import AttemptOut, AttemptStartRequest
 from app.schemas.exam import ExamCreate, ExamOut, ExamUpdate
+from app.schemas.exam_analytics import (
+    ExamAnalyticsMetadata,
+    ExamAnalyticsResponse,
+    ExamAnalyticsSummary,
+    ExamEndResponse,
+    HardestQuestionStat,
+    HighestViolationAttemptItem,
+    McqOptionDistributionItem,
+    QuestionAnalyticsItem,
+)
 from app.schemas.health import HealthResponse
 from app.schemas.monitoring import (
     DashboardAttemptSnapshot,
@@ -53,6 +63,14 @@ __all__ = [
     "ExamCreate",
     "ExamUpdate",
     "ExamOut",
+    "ExamEndResponse",
+    "ExamAnalyticsSummary",
+    "QuestionAnalyticsItem",
+    "McqOptionDistributionItem",
+    "HighestViolationAttemptItem",
+    "HardestQuestionStat",
+    "ExamAnalyticsMetadata",
+    "ExamAnalyticsResponse",
     "QuestionCreate",
     "QuestionUpdate",
     "QuestionOut",

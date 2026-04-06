@@ -29,6 +29,8 @@ export type Exam = {
   time_limit_minutes: number;
   instructions?: string | null;
   is_available: boolean;
+  is_ended: boolean;
+  ended_at?: string | null;
   created_at: string;
 };
 
@@ -151,6 +153,78 @@ export type ScreenshotListItem = {
   file_path: string;
   captured_at: string;
   file_url: string;
+};
+
+export type EndExamResponse = {
+  exam_id: string;
+  ended_at: string;
+  updated_attempts: number;
+  already_completed_attempts: number;
+  status: string;
+};
+
+export type ExamAnalyticsQuestionOption = {
+  option_id: string;
+  option_text: string;
+  count: number;
+  percentage: number;
+};
+
+export type ExamAnalyticsQuestion = {
+  question_id: string;
+  question_text: string;
+  average_time_spent_seconds?: number;
+  total_answers: number;
+  unanswered_count: number;
+  alert_count_for_question?: number | null;
+  average_answer_length?: number;
+  mcq_option_distribution?: ExamAnalyticsQuestionOption[];
+  correct_rate_percent?: number;
+};
+
+export type ExamAnalyticsHighestViolationAttempt = {
+  attempt_id: string;
+  username?: string | null;
+  violation_count: number;
+};
+
+export type ExamAnalyticsHardestQuestion = {
+  question_id: string;
+  question_text: string;
+  metric: string;
+  value: number;
+};
+
+export type ExamAnalyticsSummary = {
+  exam_id: string;
+  exam_title: string;
+  total_attempts: number;
+  completed_attempts: number;
+  force_submitted_attempts: number;
+  submission_rate_percent: number;
+  average_exam_duration_seconds?: number;
+  min_exam_duration_seconds?: number;
+  max_exam_duration_seconds?: number;
+  median_exam_duration_seconds?: number;
+  average_violations_per_attempt: number;
+  total_violations: number;
+  total_screenshots: number;
+  most_common_violation_type?: string | null;
+  attempts_with_highest_violation_count: ExamAnalyticsHighestViolationAttempt[];
+  average_questions_answered_per_attempt: number;
+  attempts_with_violations_percent: number;
+  hardest_question?: ExamAnalyticsHardestQuestion | null;
+  ended_at?: string | null;
+  is_ended: boolean;
+};
+
+export type ExamAnalyticsResponse = {
+  exam: ExamAnalyticsSummary;
+  questions: ExamAnalyticsQuestion[];
+  metadata: {
+    question_time_method: string;
+    question_alert_method: string;
+  };
 };
 
 export function setToken(token: string): void {
@@ -387,4 +461,22 @@ export async function getScreenshotBlob(screenshotId: string): Promise<Blob> {
     throw new ApiError(response.status, await readErrorMessage(response, "Could not load screenshot file"));
   }
   return response.blob();
+}
+
+export async function endExam(examId: string): Promise<EndExamResponse> {
+  const response = await authFetch(`/admin/exams/${examId}/end`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not end exam"));
+  }
+  return parseJson<EndExamResponse>(response);
+}
+
+export async function getExamAnalytics(examId: string): Promise<ExamAnalyticsResponse> {
+  const response = await authFetch(`/admin/exams/${examId}/analytics`);
+  if (!response.ok) {
+    throw new ApiError(response.status, await readErrorMessage(response, "Could not load exam analytics"));
+  }
+  return parseJson<ExamAnalyticsResponse>(response);
 }

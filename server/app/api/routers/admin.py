@@ -6,12 +6,14 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_admin
 from app.db.session import get_db
 from app.models import User
+from app.schemas.exam_analytics import ExamAnalyticsResponse, ExamEndResponse
 from app.schemas.review import AttemptReviewDetail, AttemptReviewListItem, AttemptScoreOut, AttemptScoreUpdate
 from app.services.admin_attempts_service import (
     get_attempt_review_detail,
     list_submitted_attempts_for_exam,
     update_attempt_score,
 )
+from app.services.exam_analytics_service import end_exam, get_exam_analytics
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -28,6 +30,28 @@ def get_exam_attempts(
     _: User = Depends(require_admin),
 ) -> list[AttemptReviewListItem]:
     return list_submitted_attempts_for_exam(db, exam_id)
+
+
+@router.post("/exams/{exam_id}/end", response_model=ExamEndResponse)
+def post_end_exam(
+    exam_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> ExamEndResponse:
+    return end_exam(db, exam_id)
+
+
+@router.get(
+    "/exams/{exam_id}/analytics",
+    response_model=ExamAnalyticsResponse,
+    response_model_exclude_none=True,
+)
+def get_exam_analytics_endpoint(
+    exam_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> ExamAnalyticsResponse:
+    return get_exam_analytics(db, exam_id)
 
 
 @router.get("/attempts/{attempt_id}", response_model=AttemptReviewDetail)

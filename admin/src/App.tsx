@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 
 import { adminPing, clearToken, getMe, getToken, login, setToken, type MeResponse } from "./lib/api";
+import ExamAnalyticsPage from "./pages/ExamAnalyticsPage";
 import ExamEditorPage from "./pages/ExamEditorPage";
 import ExamsListPage from "./pages/ExamsListPage";
 import ExamSubmissionsPage from "./pages/ExamSubmissionsPage";
@@ -177,6 +178,10 @@ function App() {
               <Route path="/monitoring" element={<LiveMonitoringPage onAuthError={handleAuthError} />} />
               <Route path="/exams/new" element={<ExamEditorPage onAuthError={handleAuthError} />} />
               <Route path="/exams/:examId" element={<ExamEditorPage onAuthError={handleAuthError} />} />
+              <Route
+                path="/exams/:examId/analytics"
+                element={<ExamAnalyticsPage onAuthError={handleAuthError} />}
+              />
               <Route
                 path="/exams/:examId/submissions"
                 element={<ExamSubmissionsPage onAuthError={handleAuthError} />}

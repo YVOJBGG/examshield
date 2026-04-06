@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { ApiError, deleteExam, listExams, type Exam } from "../lib/api";
+import { ApiError, deleteExam, endExam, listExams, type Exam } from "../lib/api";
 
 type Props = {
   onAuthError: (message: string) => void;
@@ -15,7 +15,9 @@ function ExamsListPage({ onAuthError }: Props) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [exams, setExams] = useState<Exam[]>([]);
+  const [endingExamId, setEndingExamId] = useState<string | null>(null);
 
   const summary = useMemo(
     () => ({
@@ -54,6 +56,7 @@ function ExamsListPage({ onAuthError }: Props) {
     }
 
     setError(null);
+    setSuccessMessage(null);
     try {
       await deleteExam(examId);
       await loadExams();
@@ -63,6 +66,49 @@ function ExamsListPage({ onAuthError }: Props) {
       if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
         onAuthError("Authentication failed or insufficient permissions. Please login as admin.");
       }
+    }
+  }
+
+  async function onEndExam(exam: Exam) {
+    const confirmed = window.confirm(
+      "This will finish all active attempts for this exam. Students still taking it will be submitted automatically.",
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setEndingExamId(exam.id);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const result = await endExam(exam.id);
+      setExams((current) =>
+        current.map((item) =>
+          item.id === exam.id
+            ? {
+                ...item,
+                is_ended: true,
+                ended_at: result.ended_at,
+                is_available: false,
+              }
+            : item,
+        ),
+      );
+      const attemptLabel = result.updated_attempts === 1 ? "attempt" : "attempts";
+      const success = `Exam ended successfully. ${result.updated_attempts} active ${attemptLabel} were submitted automatically.`;
+      setSuccessMessage(success);
+      navigate(`/exams/${exam.id}/analytics`, {
+        state: { successMessage: success },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not end exam";
+      setError(message);
+      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+        onAuthError("Authentication failed or insufficient permissions. Please login as admin.");
+      }
+    } finally {
+      setEndingExamId(null);
     }
   }
 
@@ -108,6 +154,7 @@ function ExamsListPage({ onAuthError }: Props) {
       </div>
 
       {error && <p className="error">Error: {error}</p>}
+      {successMessage && <p className="success-text">{successMessage}</p>}
 
       <section className="panel">
         <div className="section-heading">
@@ -128,8 +175,16 @@ function ExamsListPage({ onAuthError }: Props) {
                     <span className={`type-badge ${exam.exam_type}`}>{formatExamType(exam.exam_type)}</span>
                     <h3>{exam.title}</h3>
                   </div>
-                  <span className={exam.is_available ? "availability-pill available" : "availability-pill unavailable"}>
-                    {exam.is_available ? "Available" : "Unavailable"}
+                  <span
+                    className={
+                      exam.is_ended
+                        ? "availability-pill ended"
+                        : exam.is_available
+                          ? "availability-pill available"
+                          : "availability-pill unavailable"
+                    }
+                  >
+                    {exam.is_ended ? "Ended" : exam.is_available ? "Available" : "Unavailable"}
                   </span>
                 </div>
 
@@ -150,6 +205,10 @@ function ExamsListPage({ onAuthError }: Props) {
                     <span>Instructions</span>
                     <strong>{exam.instructions?.trim() ? "Included" : "Not set"}</strong>
                   </p>
+                  <p>
+                    <span>Exam status</span>
+                    <strong>{exam.is_ended ? "Ended" : "Active"}</strong>
+                  </p>
                 </div>
 
                 <div className="exam-card-actions">
@@ -162,6 +221,21 @@ function ExamsListPage({ onAuthError }: Props) {
                     onClick={() => navigate(`/exams/${exam.id}/submissions`)}
                   >
                     View Submissions
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => navigate(`/exams/${exam.id}/analytics`)}
+                  >
+                    View Analytics
+                  </button>
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() => void onEndExam(exam)}
+                    disabled={endingExamId === exam.id || exam.is_ended}
+                  >
+                    {exam.is_ended ? "Exam Ended" : endingExamId === exam.id ? "Ending..." : "End Exam"}
                   </button>
                   <button type="button" className="danger" onClick={() => void onDeleteExam(exam.id)}>
                     Delete

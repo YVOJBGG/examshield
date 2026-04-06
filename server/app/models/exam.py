@@ -21,6 +21,8 @@ class Exam(Base):
     instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
     time_limit_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
     is_available: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    is_ended: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     questions = relationship(

@@ -52,7 +52,7 @@ def list_submitted_attempts_for_exam(db: Session, exam_id: uuid.UUID) -> list[At
         db.scalars(
             select(Attempt)
             .options(selectinload(Attempt.user), selectinload(Attempt.exam))
-            .where(Attempt.exam_id == exam_id, Attempt.status == "submitted")
+            .where(Attempt.exam_id == exam_id, Attempt.status.in_(("submitted", "force_submitted")))
             .order_by(Attempt.submitted_at.desc(), Attempt.started_at.desc())
         ).all()
     )
@@ -72,10 +72,10 @@ def list_submitted_attempts_for_exam(db: Session, exam_id: uuid.UUID) -> list[At
 
 def get_attempt_review_detail(db: Session, attempt_id: uuid.UUID) -> AttemptReviewDetail:
     attempt = _get_attempt(db, attempt_id)
-    if attempt.status != "submitted":
+    if attempt.status not in {"submitted", "force_submitted"}:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only submitted attempts can be reviewed",
+            detail="Only completed attempts can be reviewed",
         )
 
     questions = list(
@@ -144,10 +144,10 @@ def get_attempt_review_detail(db: Session, attempt_id: uuid.UUID) -> AttemptRevi
 
 def update_attempt_score(db: Session, attempt_id: uuid.UUID, score: float, admin_user_id: uuid.UUID) -> Attempt:
     attempt = _get_attempt(db, attempt_id)
-    if attempt.status != "submitted":
+    if attempt.status not in {"submitted", "force_submitted"}:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only submitted attempts can be graded",
+            detail="Only completed attempts can be graded",
         )
     if attempt.exam.exam_type != "written":
         raise HTTPException(

@@ -36,6 +36,8 @@ class ExamOut(BaseModel):
     time_limit_minutes: int
     instructions: str | None
     is_available: bool
+    is_ended: bool
+    ended_at: datetime | None
     created_at: datetime
 
 

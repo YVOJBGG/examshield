@@ -382,6 +382,13 @@ label {
   box-shadow: none;
 }
 
+.button-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 .danger {
   background: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%);
   box-shadow: 0 10px 22px rgba(185, 28, 28, 0.18);
@@ -676,6 +683,11 @@ label {
   color: #991b1b;
 }
 
+.availability-pill.ended {
+  background: rgba(254, 243, 199, 0.95);
+  color: #92400e;
+}
+
 .grading-pill.pending {
   background: rgba(255, 247, 237, 0.95);
   color: var(--accent-amber);
@@ -916,6 +928,77 @@ label {
   gap: 0.65rem;
 }
 
+.analytics-stats-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.analytics-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.85fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.analytics-summary-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.analytics-highlight-card,
+.analytics-top-item,
+.analytics-question-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.analytics-highlight-card,
+.analytics-question-card {
+  padding: 1rem;
+}
+
+.analytics-highlight-card {
+  margin-top: 1rem;
+}
+
+.analytics-highlight-card strong,
+.analytics-side-section h4 {
+  display: block;
+  margin-top: 0.35rem;
+}
+
+.analytics-highlight-card p,
+.analytics-top-item p {
+  margin: 0.35rem 0 0;
+  color: var(--text-muted);
+}
+
+.analytics-side-section {
+  margin-top: 1rem;
+}
+
+.analytics-top-list,
+.analytics-question-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.analytics-top-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.9rem 1rem;
+}
+
+.analytics-meta-text {
+  word-break: break-all;
+}
+
+.analytics-question-metadata {
+  margin-bottom: 1rem;
+}
+
 .type-badge {
   display: inline-flex;
   width: fit-content;
@@ -1118,7 +1201,8 @@ label {
 
   .monitoring-layout,
   .review-layout,
-  .builder-layout {
+  .builder-layout,
+  .analytics-layout {
     grid-template-columns: 1fr;
   }
 }
@@ -1134,6 +1218,7 @@ label {
   .page-header,
   .review-meta,
   .stats-grid,
+  .analytics-summary-list,
   .inline-form,
   .score-form,
   .builder-section-grid,

@@ -24,7 +24,7 @@ def _get_submitted_attempt(db: Session, user_id: uuid.UUID, exam_id: uuid.UUID) 
         .where(
             Attempt.user_id == user_id,
             Attempt.exam_id == exam_id,
-            Attempt.status == "submitted",
+            Attempt.status.in_(("submitted", "force_submitted")),
         )
         .order_by(Attempt.started_at.desc())
     )
@@ -53,6 +53,12 @@ def _validate_student_exam_entry(db: Session, user_id: uuid.UUID, exam: Exam) ->
     in_progress_attempt = _get_in_progress_attempt(db, user_id, exam.id)
     if in_progress_attempt is not None:
         return in_progress_attempt
+
+    if exam.is_ended:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This exam has already ended.",
+        )
 
     if not exam.is_available:
         raise HTTPException(
