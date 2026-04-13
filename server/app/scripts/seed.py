@@ -12,14 +12,6 @@ USERS = [
     {"username": "student3", "password": "student123", "role": "student"},
 ]
 
-EXAM_TITLE = "Milestone 1 Sample Exam"
-QUESTIONS = [
-    "What is the purpose of process isolation in operating systems?",
-    "Explain ACID properties in transactional databases.",
-    "Define normalization and list 1NF, 2NF, and 3NF briefly.",
-    "What is the difference between authentication and authorization?",
-    "Why do we use database migrations in backend projects?",
-]
 
 
 def seed_users(session) -> None:
@@ -36,11 +28,11 @@ def seed_users(session) -> None:
             )
         )
 
-
-def seed_exam_with_questions(session) -> None:
-    exam = session.scalar(select(Exam).where(Exam.title == EXAM_TITLE))
+"""
+def seed_exam_with_questions(session):
+    exam = session.scalar(select(Exam).where(Exam.exam_code == SAMPLE_EXAM["exam_code"]))
     if not exam:
-        exam = Exam(title=EXAM_TITLE, time_limit_minutes=60)
+        exam = Exam(**SAMPLE_EXAM)
         session.add(exam)
         session.flush()
 
@@ -52,14 +44,17 @@ def seed_exam_with_questions(session) -> None:
             continue
         session.add(Question(exam_id=exam.id, text=qtext))
 
+    return exam.id
+"""
 
 def main() -> None:
     with SessionLocal() as session:
         seed_users(session)
-        seed_exam_with_questions(session)
+        #exam_id = seed_exam_with_questions(session)
         session.commit()
 
     print("Seeding complete.")
+    #print(f"Sample exam UUID: {exam_id}")
 
 
 if __name__ == "__main__":
