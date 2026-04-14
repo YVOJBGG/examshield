@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { EmptyState, PageHeader, StatCard } from "../components/ui";
 import { ApiError, deleteExam, endExam, listExams, type Exam } from "../lib/api";
 
 type Props = {
@@ -114,43 +115,38 @@ function ExamsListPage({ onAuthError }: Props) {
 
   return (
     <section className="page-section">
-      <div className="page-header">
-        <div>
-          <span className="eyebrow">Exam Management</span>
-          <h2>Exam Builder</h2>
-          <p className="page-intro">
-            Create polished MCQ or written assessments, keep structure consistent, and jump back
-            into any exam to refine its content.
-          </p>
-        </div>
-        <div className="actions">
+      <PageHeader
+        eyebrow="Exam Management"
+        title="Exam Builder"
+        description="Create, organize, and close assessments from one secure administration workspace."
+        actions={
           <button type="button" onClick={() => navigate("/exams/new")}>
             Create New Exam
           </button>
-        </div>
-      </div>
+        }
+      />
 
       <div className="stats-grid">
-        <article className="stat-card">
-          <span className="stat-label">Total exams</span>
-          <strong>{summary.total}</strong>
-          <p>Structured assessments currently configured in the portal.</p>
-        </article>
-        <article className="stat-card">
-          <span className="stat-label">Available now</span>
-          <strong>{summary.available}</strong>
-          <p>Exams students can currently enter for a new attempt.</p>
-        </article>
-        <article className="stat-card">
-          <span className="stat-label">MCQ exams</span>
-          <strong>{summary.mcq}</strong>
-          <p>Auto-graded assessments with answer options and correct choices.</p>
-        </article>
-        <article className="stat-card">
-          <span className="stat-label">Written exams</span>
-          <strong>{summary.written}</strong>
-          <p>Open-response assessments designed for manual grading workflows.</p>
-        </article>
+        <StatCard
+          label="Total exams"
+          value={summary.total}
+          description="Structured assessments currently configured in the portal."
+        />
+        <StatCard
+          label="Available now"
+          value={summary.available}
+          description="Exams students can currently enter for a new attempt."
+        />
+        <StatCard
+          label="MCQ exams"
+          value={summary.mcq}
+          description="Auto-graded assessments with answer options and correct choices."
+        />
+        <StatCard
+          label="Written exams"
+          value={summary.written}
+          description="Open-response assessments designed for manual grading workflows."
+        />
       </div>
 
       {error && <p className="error">Error: {error}</p>}
@@ -245,13 +241,15 @@ function ExamsListPage({ onAuthError }: Props) {
             ))}
 
             {exams.length === 0 && (
-              <div className="empty-state-card">
-                <h3>No exams yet</h3>
-                <p>Start with a written or MCQ assessment and build the full structure from one editor.</p>
-                <button type="button" onClick={() => navigate("/exams/new")}>
-                  Create your first exam
-                </button>
-              </div>
+              <EmptyState
+                title="No exams yet"
+                description="Start with a written or MCQ assessment and build the full structure from one editor."
+                action={
+                  <button type="button" onClick={() => navigate("/exams/new")}>
+                    Create your first exam
+                  </button>
+                }
+              />
             )}
           </div>
         )}

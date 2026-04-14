@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
+import { EmptyState, PageHeader } from "../components/ui";
 import {
   ApiError,
   createExam,
@@ -466,40 +467,38 @@ function ExamEditorPage({ onAuthError }: Props) {
 
   return (
     <section className="page-section">
-      <div className="page-header">
-        <div className="page-heading-block">
+      <PageHeader
+        backLink={
           <Link to="/" className="back-link">
             Back to exams
           </Link>
-          <span className="eyebrow">{isCreateMode ? "New Assessment" : "Edit Assessment"}</span>
-          <h2>{isCreateMode ? "Exam Builder" : draft.title || "Untitled exam"}</h2>
-          <p className="page-intro">
-            Author the full assessment structure in one place, including exam settings, ordered
-            questions, points, and MCQ answer keys where needed.
-          </p>
-        </div>
-
-        <div className="actions">
-          {!isCreateMode && exam ? (
-            <button type="button" className="secondary-button" onClick={() => navigate(`/exams/${exam.id}/analytics`)}>
-              View Analytics
+        }
+        eyebrow={isCreateMode ? "New Assessment" : "Edit Assessment"}
+        title={isCreateMode ? "Exam Builder" : draft.title || "Untitled exam"}
+        description="Author the full assessment structure in one place, including exam settings, ordered questions, points, and MCQ answer keys where needed."
+        actions={
+          <>
+            {!isCreateMode && exam ? (
+              <button type="button" className="secondary-button" onClick={() => navigate(`/exams/${exam.id}/analytics`)}>
+                View Analytics
+              </button>
+            ) : null}
+            {!isCreateMode && exam ? (
+              <button type="button" className="secondary-button" onClick={() => navigate(`/exams/${exam.id}/submissions`)}>
+                View Submissions
+              </button>
+            ) : null}
+            {!isCreateMode ? (
+              <button type="button" className="danger" onClick={() => void onDeleteCurrentExam()}>
+                Delete Exam
+              </button>
+            ) : null}
+            <button type="button" onClick={() => void onSaveBuilder()} disabled={saving}>
+              {saving ? "Saving..." : isCreateMode ? "Create Exam" : "Save Builder"}
             </button>
-          ) : null}
-          {!isCreateMode && exam ? (
-            <button type="button" className="secondary-button" onClick={() => navigate(`/exams/${exam.id}/submissions`)}>
-              View Submissions
-            </button>
-          ) : null}
-          {!isCreateMode ? (
-            <button type="button" className="danger" onClick={() => void onDeleteCurrentExam()}>
-              Delete Exam
-            </button>
-          ) : null}
-          <button type="button" onClick={() => void onSaveBuilder()} disabled={saving}>
-            {saving ? "Saving..." : isCreateMode ? "Create Exam" : "Save Builder"}
-          </button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {error && <p className="error">Error: {error}</p>}
       {success && <p className="success-text">{success}</p>}
@@ -716,16 +715,17 @@ function ExamEditorPage({ onAuthError }: Props) {
               })}
 
               {draft.questions.length === 0 ? (
-                <div className="empty-state-card">
-                  <h3>No questions yet</h3>
-                  <p>
-                    Add your first {draft.exam_type === "mcq" ? "multiple-choice" : "written"} question to start
-                    building the assessment.
-                  </p>
-                  <button type="button" onClick={addQuestion}>
-                    Add First Question
-                  </button>
-                </div>
+                <EmptyState
+                  title="No questions yet"
+                  description={`Add your first ${
+                    draft.exam_type === "mcq" ? "multiple-choice" : "written"
+                  } question to start building the assessment.`}
+                  action={
+                    <button type="button" onClick={addQuestion}>
+                      Add First Question
+                    </button>
+                  }
+                />
               ) : null}
             </div>
           </section>

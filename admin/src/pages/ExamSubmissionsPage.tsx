@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import ScreenshotGallery from "../components/ScreenshotGallery";
+import { PageHeader, StatCard } from "../components/ui";
 import {
   ApiError,
   getExam,
@@ -229,42 +230,35 @@ function ExamSubmissionsPage({ onAuthError }: Props) {
 
   return (
     <section className="page-section">
-      <div className="page-header">
-        <div className="page-heading-block">
+      <PageHeader
+        backLink={
           <Link to="/" className="back-link">
             Back to exams
           </Link>
-          <span className="eyebrow">Submission Review</span>
-          <h2>{exam ? exam.title : "Submitted attempts"}</h2>
-          <p className="page-intro">
-            Review submitted work, inspect answers question by question, and complete grading with
-            a clear distinction between auto-graded MCQ and manually graded written attempts.
-          </p>
-        </div>
-      </div>
+        }
+        eyebrow="Submission Review"
+        title={exam ? exam.title : "Submitted attempts"}
+        description="Review submitted work, inspect answers question by question, and complete grading with a clear distinction between auto-graded MCQ and manually graded written attempts."
+      />
 
       {exam && (
         <div className="stats-grid">
-          <article className="stat-card">
-            <span className="stat-label">Exam ID</span>
-            <strong className="mono">{exam.exam_code}</strong>
-            <p>Student-facing access code for this assessment.</p>
-          </article>
-          <article className="stat-card">
-            <span className="stat-label">Exam type</span>
-            <strong>{exam.exam_type === "mcq" ? "MCQ" : "Written"}</strong>
-            <p>Determines whether grading is automatic or manual after submission.</p>
-          </article>
-          <article className="stat-card">
-            <span className="stat-label">Submitted attempts</span>
-            <strong>{attempts.length}</strong>
-            <p>Completed attempts available for review right now.</p>
-          </article>
-          <article className="stat-card">
-            <span className="stat-label">Selected score</span>
-            <strong>{attemptDetail?.score == null ? "Not graded" : attemptDetail.score}</strong>
-            <p>Current persisted score for the selected attempt.</p>
-          </article>
+          <StatCard label="Exam ID" value={<span className="mono">{exam.exam_code}</span>} description="Student-facing access code for this assessment." />
+          <StatCard
+            label="Exam type"
+            value={exam.exam_type === "mcq" ? "MCQ" : "Written"}
+            description="Determines whether grading is automatic or manual after submission."
+          />
+          <StatCard
+            label="Submitted attempts"
+            value={attempts.length}
+            description="Completed attempts available for review right now."
+          />
+          <StatCard
+            label="Selected score"
+            value={attemptDetail?.score == null ? "Not graded" : attemptDetail.score}
+            description="Current persisted score for the selected attempt."
+          />
         </div>
       )}
 

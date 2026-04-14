@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { PageHeader, StatCard } from "../components/ui";
 import { getToken, listAttemptViolations, type ViolationListItem } from "../lib/api";
 import ScreenshotGallery from "../components/ScreenshotGallery";
 import {
@@ -261,16 +262,11 @@ function LiveMonitoringPage({ onAuthError }: Props) {
 
   return (
     <section className="page-section">
-      <div className="page-header">
-        <div>
-          <span className="eyebrow">Monitoring</span>
-          <h2>Live exam activity</h2>
-          <p className="page-intro">
-            Track active attempts, surface alert activity quickly, and inspect per-attempt
-            violations without losing sight of the main monitoring feed.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Monitoring"
+        title="Live exam activity"
+        description="Track active attempts, surface alert activity quickly, and inspect per-attempt violations without losing sight of the main monitoring feed."
+      />
 
       <div className="toast-stack" aria-live="polite">
         {toasts.map((toast) => (
@@ -281,26 +277,10 @@ function LiveMonitoringPage({ onAuthError }: Props) {
       </div>
 
       <div className="stats-grid">
-        <article className="stat-card">
-          <span className="stat-label">Connection</span>
-          <strong>{connectionLabel}</strong>
-          <p>WebSocket status for the live monitoring stream.</p>
-        </article>
-        <article className="stat-card">
-          <span className="stat-label">Tracked attempts</span>
-          <strong>{totalAttempts}</strong>
-          <p>Attempts currently visible in this monitoring session.</p>
-        </article>
-        <article className="stat-card">
-          <span className="stat-label">Rows with alerts</span>
-          <strong>{alertRows}</strong>
-          <p>Attempt rows currently flagged with one or more violations.</p>
-        </article>
-        <article className="stat-card">
-          <span className="stat-label">Alert count</span>
-          <strong>{totalAlerts}</strong>
-          <p>Total violation count accumulated across visible attempts.</p>
-        </article>
+        <StatCard label="Connection" value={connectionLabel} description="WebSocket status for the live monitoring stream." />
+        <StatCard label="Tracked attempts" value={totalAttempts} description="Attempts currently visible in this monitoring session." />
+        <StatCard label="Rows with alerts" value={alertRows} description="Attempt rows currently flagged with one or more violations." />
+        <StatCard label="Alert count" value={totalAlerts} description="Total violation count accumulated across visible attempts." />
       </div>
 
       <div className="monitoring-layout">

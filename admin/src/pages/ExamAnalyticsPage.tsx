@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 
+import { EmptyState, PageHeader, StatCard } from "../components/ui";
 import { ApiError, getExam, getExamAnalytics, type Exam, type ExamAnalyticsQuestion, type ExamAnalyticsResponse } from "../lib/api";
 
 type Props = {
@@ -187,30 +188,28 @@ function ExamAnalyticsPage({ onAuthError }: Props) {
 
   return (
     <section className="page-section">
-      <div className="page-header">
-        <div className="page-heading-block">
+      <PageHeader
+        backLink={
           <Link to="/" className="back-link">
             Back to exams
           </Link>
-          <span className="eyebrow">Exam Analytics</span>
-          <h2>{exam ? `${exam.title} analytics` : "Exam analytics"}</h2>
-          <p className="page-intro">
-            Review completion outcomes, question behavior, and monitoring patterns for this exam in
-            a clean, export-friendly layout.
-          </p>
-        </div>
-
-        {exam ? (
-          <div className="actions">
-            <Link to={`/exams/${exam.id}`} className="button-link">
-              Open Builder
-            </Link>
-            <Link to={`/exams/${exam.id}/submissions`} className="button-link">
-              View Submissions
-            </Link>
-          </div>
-        ) : null}
-      </div>
+        }
+        eyebrow="Exam Analytics"
+        title={exam ? `${exam.title} analytics` : "Exam analytics"}
+        description="Review completion outcomes, question behavior, and monitoring patterns for this exam in a clean, export-friendly layout."
+        actions={
+          exam ? (
+            <>
+              <Link to={`/exams/${exam.id}`} className="button-link secondary-button">
+                Open Builder
+              </Link>
+              <Link to={`/exams/${exam.id}/submissions`} className="button-link secondary-button">
+                View Submissions
+              </Link>
+            </>
+          ) : null
+        }
+      />
 
       {locationState?.successMessage ? <p className="success-text">{locationState.successMessage}</p> : null}
       {error ? <p className="error">Error: {error}</p> : null}
@@ -224,60 +223,56 @@ function ExamAnalyticsPage({ onAuthError }: Props) {
       {!loading && analytics ? (
         <>
           <div className="stats-grid analytics-stats-grid">
-            <article className="stat-card">
-              <span className="stat-label">Exam title</span>
-              <strong>{analytics.exam.exam_title}</strong>
-              <p>{analytics.exam.is_ended ? "Exam ended and ready for analysis." : "Exam analytics snapshot."}</p>
-            </article>
-            <article className="stat-card">
-              <span className="stat-label">Total attempts</span>
-              <strong>{analytics.exam.total_attempts}</strong>
-              <p>All attempts recorded for this exam.</p>
-            </article>
-            <article className="stat-card">
-              <span className="stat-label">Completed attempts</span>
-              <strong>{analytics.exam.completed_attempts}</strong>
-              <p>Submitted or force-submitted attempts included in reporting.</p>
-            </article>
-            <article className="stat-card">
-              <span className="stat-label">Force-submitted</span>
-              <strong>{analytics.exam.force_submitted_attempts}</strong>
-              <p>Attempts automatically finished when the exam was ended.</p>
-            </article>
-            <article className="stat-card">
-              <span className="stat-label">Submission rate</span>
-              <strong>{formatPercent(analytics.exam.submission_rate_percent)}</strong>
-              <p>Completed attempts as a share of total attempts.</p>
-            </article>
-            <article className="stat-card">
-              <span className="stat-label">Average duration</span>
-              <strong>{formatDuration(analytics.exam.average_exam_duration_seconds)}</strong>
-              <p>Average time from attempt start to submission.</p>
-            </article>
-            <article className="stat-card">
-              <span className="stat-label">Total violations</span>
-              <strong>{analytics.exam.total_violations}</strong>
-              <p>All monitoring violations recorded for this exam.</p>
-            </article>
-            <article className="stat-card">
-              <span className="stat-label">Violations per attempt</span>
-              <strong>{formatNumber(analytics.exam.average_violations_per_attempt)}</strong>
-              <p>Average violations across all attempts.</p>
-            </article>
-            <article className="stat-card">
-              <span className="stat-label">Attempts with violations</span>
-              <strong>{formatPercent(analytics.exam.attempts_with_violations_percent)}</strong>
-              <p>Share of attempts that had at least one violation.</p>
-            </article>
+            <StatCard
+              label="Exam title"
+              value={analytics.exam.exam_title}
+              description={analytics.exam.is_ended ? "Exam ended and ready for analysis." : "Exam analytics snapshot."}
+            />
+            <StatCard label="Total attempts" value={analytics.exam.total_attempts} description="All attempts recorded for this exam." />
+            <StatCard
+              label="Completed attempts"
+              value={analytics.exam.completed_attempts}
+              description="Submitted or force-submitted attempts included in reporting."
+            />
+            <StatCard
+              label="Force-submitted"
+              value={analytics.exam.force_submitted_attempts}
+              description="Attempts automatically finished when the exam was ended."
+            />
+            <StatCard
+              label="Submission rate"
+              value={formatPercent(analytics.exam.submission_rate_percent)}
+              description="Completed attempts as a share of total attempts."
+            />
+            <StatCard
+              label="Average duration"
+              value={formatDuration(analytics.exam.average_exam_duration_seconds)}
+              description="Average time from attempt start to submission."
+            />
+            <StatCard
+              label="Total violations"
+              value={analytics.exam.total_violations}
+              description="All monitoring violations recorded for this exam."
+            />
+            <StatCard
+              label="Violations per attempt"
+              value={formatNumber(analytics.exam.average_violations_per_attempt)}
+              description="Average violations across all attempts."
+            />
+            <StatCard
+              label="Attempts with violations"
+              value={formatPercent(analytics.exam.attempts_with_violations_percent)}
+              description="Share of attempts that had at least one violation."
+            />
           </div>
 
           {!hasAttempts ? (
-            <section className="panel empty-state-card analytics-empty-state">
-              <h3>No analytics yet</h3>
-              <p>
-                This exam does not have any attempts yet, so there are no outcomes or monitoring
-                patterns to summarize.
-              </p>
+            <section className="panel analytics-empty-panel">
+              <EmptyState
+                title="No analytics yet"
+                description="This exam does not have any attempts yet, so there are no outcomes or monitoring patterns to summarize."
+                className="analytics-empty-state"
+              />
             </section>
           ) : (
             <>
