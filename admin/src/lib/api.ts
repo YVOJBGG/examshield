@@ -292,15 +292,6 @@ export async function getMe(): Promise<MeResponse> {
   return parseJson<MeResponse>(response);
 }
 
-export async function adminPing(): Promise<unknown> {
-  const response = await authFetch("/admin/ping");
-  if (!response.ok) {
-    throw new ApiError(response.status, await readErrorMessage(response, "Admin ping failed"));
-  }
-
-  return parseJson<unknown>(response);
-}
-
 export async function listExams(): Promise<Exam[]> {
   const response = await authFetch("/exams");
   if (!response.ok) {

@@ -89,7 +89,3 @@ class ViolationService:
         if ok:
             self._cooldowns[key] = now
         return ok
-
-    def report_manual_flag(self, attempt_id: str, details: str | None = None) -> bool:
-        message = details or "Manual test violation triggered from client"
-        return self.report_violation(attempt_id, "manual_flag", message)

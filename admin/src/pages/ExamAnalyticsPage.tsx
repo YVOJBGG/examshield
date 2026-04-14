@@ -202,10 +202,10 @@ function ExamAnalyticsPage({ onAuthError }: Props) {
 
         {exam ? (
           <div className="actions">
-            <Link to={`/exams/${exam.id}`} className="button-link secondary-button">
+            <Link to={`/exams/${exam.id}`} className="button-link">
               Open Builder
             </Link>
-            <Link to={`/exams/${exam.id}/submissions`} className="button-link secondary-button">
+            <Link to={`/exams/${exam.id}/submissions`} className="button-link">
               View Submissions
             </Link>
           </div>

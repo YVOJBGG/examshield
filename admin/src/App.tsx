@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 
-import { adminPing, clearToken, getMe, getToken, login, setToken, type MeResponse } from "./lib/api";
+import { clearToken, getMe, getToken, login, setToken, type MeResponse } from "./lib/api";
 import ExamAnalyticsPage from "./pages/ExamAnalyticsPage";
 import ExamEditorPage from "./pages/ExamEditorPage";
 import ExamsListPage from "./pages/ExamsListPage";
@@ -15,7 +15,6 @@ function App() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [me, setMe] = useState<MeResponse | null>(null);
-  const [pingResult, setPingResult] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadMeIfTokenExists() {
@@ -37,7 +36,6 @@ function App() {
   async function onLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setPingResult(null);
     setSubmitting(true);
 
     try {
@@ -53,22 +51,9 @@ function App() {
     }
   }
 
-  async function onAdminPing() {
-    setPingResult(null);
-    setError(null);
-
-    try {
-      const result = await adminPing();
-      setPingResult(JSON.stringify(result));
-    } catch (err) {
-      setPingResult(`Error: ${err instanceof Error ? err.message : "Request failed"}`);
-    }
-  }
-
   function onLogout() {
     clearToken();
     setMe(null);
-    setPingResult(null);
     setError(null);
   }
 
@@ -144,9 +129,6 @@ function App() {
                 </div>
               </div>
               <div className="actions">
-                <button type="button" className="secondary-button" onClick={() => void onAdminPing()}>
-                  Admin Ping
-                </button>
                 <button type="button" onClick={onLogout}>
                   Logout
                 </button>
@@ -170,7 +152,6 @@ function App() {
           </nav>
 
           {error && <p className="error banner-error">Error: {error}</p>}
-          {pingResult && <pre>{pingResult}</pre>}
 
           <div className="page-stack">
             <Routes>

@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from app.config import DEV_MODE, MONITORING_HEARTBEAT_INTERVAL_MS
+from app.config import MONITORING_HEARTBEAT_INTERVAL_MS
 from app.models.dto import StudentQuestion
 from app.services.monitoring_client import MonitoringClient
 from app.services.network_client import ApiClientError
@@ -98,15 +98,10 @@ class ExamWindow(QWidget):
         self.autosave_button.clicked.connect(self._autosave_now)
         self.submit_button = QPushButton("Submit Exam")
         self.submit_button.clicked.connect(self._submit_exam)
-        self.debug_violation_button = QPushButton("Trigger Test Violation")
-        self.debug_violation_button.clicked.connect(self._trigger_test_violation)
-        self.debug_violation_button.setVisible(DEV_MODE)
 
         button_row = QHBoxLayout()
         button_row.addWidget(self.autosave_button)
         button_row.addWidget(self.submit_button)
-        if DEV_MODE:
-            button_row.addWidget(self.debug_violation_button)
 
         layout = QVBoxLayout()
         layout.addWidget(self.title_label)
@@ -349,17 +344,6 @@ class ExamWindow(QWidget):
     def _current_attempt_id(self) -> str | None:
         return self.quiz_manager.current_attempt_id
 
-    def _trigger_test_violation(self) -> None:
-        attempt_id = self._current_attempt_id()
-        if not attempt_id:
-            self.violation_status_label.setText("Violation reporting unavailable: attempt missing")
-            return
-        ok = self.violation_service.report_manual_flag(
-            attempt_id,
-            "Manual test violation triggered from debug control",
-        )
-        self._set_violation_status(ok)
-
     def _report_focus_lost(self) -> None:
         if self._submitted or self._ending_session:
             return
@@ -414,7 +398,6 @@ class ExamWindow(QWidget):
         self.countdown_timer.stop()
         self.submit_button.setEnabled(False)
         self.autosave_button.setEnabled(False)
-        self.debug_violation_button.setEnabled(False)
         self._set_editable(False)
         self.status_label.setText("Time limit reached. Finalizing exam...")
 
