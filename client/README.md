@@ -43,6 +43,14 @@ cd client
 python -m app.main
 ```
 
+## Test
+
+```powershell
+cd client
+.venv\Scripts\Activate.ps1
+pytest
+```
+
 ## Notes
 
 - Use a seeded student account from server seed data (for example `student1` / `student123`).
@@ -117,3 +125,13 @@ If monitoring send fails, exam actions continue. The exam window shows:
 7. Restore backend connectivity.
 8. Wait for periodic autosave or click `Autosave Now`; confirm status becomes `Synced to server`.
 9. Submit exam; confirm cache file moves to archive and editing is disabled.
+
+## Automated tests
+
+- `tests/test_auth_manager.py` validates login/logout token state handling.
+- `tests/test_network_client.py` validates HTTP, network, multipart upload, and invalid JSON handling.
+- `tests/test_local_cache.py` validates cache persistence, corruption recovery, and archive behavior.
+- `tests/test_quiz_manager.py` covers load/start/autosave/submit flows, offline dirty-cache behavior, cache restore, and MCQ cache normalization.
+- `tests/test_monitoring_client.py` covers monitoring session state and event sending.
+- `tests/test_violation_service.py` covers success, failure, and cooldown behavior for violations.
+- `tests/test_shortcut_detection_service.py` covers shortcut de-duplication and release-reset regression behavior.

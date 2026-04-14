@@ -18,6 +18,12 @@ Start development server:
 npm run dev
 ```
 
+Run the automated admin test suite:
+
+```bash
+npm test
+```
+
 ## Milestone 4 Live Monitoring
 
 - Login as an `admin` user first.
@@ -71,3 +77,9 @@ npm run dev
    - a highlighted attempt row
    - increased alert count and latest violation type
    - populated violations panel after clicking `View Violations`
+
+## Automated tests
+
+- `src/lib/api.test.ts` covers typed API helpers, auth header wiring, validation, and backend error handling.
+- `src/pages/ExamsListPage.test.tsx` covers exam loading, end-exam confirmation flow, loading and disabled-button behavior, navigation to analytics, and auth failure handling.
+- `src/pages/ExamAnalyticsPage.test.tsx` covers analytics rendering, empty state behavior, MCQ distribution rendering, and auth/error states.

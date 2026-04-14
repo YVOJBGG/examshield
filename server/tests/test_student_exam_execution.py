@@ -411,3 +411,35 @@ def test_attempt_ownership_enforced(client: TestClient, auth_tokens: dict[str, s
         assert other_submit_response.status_code == 403
     finally:
         client.delete(f"/exams/{exam_id}", headers=_auth_header(admin_token))
+
+
+def test_student_cannot_start_or_open_exam_after_admin_ends_it(
+    client: TestClient, auth_tokens: dict[str, str]
+) -> None:
+    admin_token = auth_tokens["admin"]
+    student_token = auth_tokens["student"]
+    exam_id, exam_code, _question_id = _create_exam_with_questions(client, admin_token)
+
+    try:
+        end_response = client.post(
+            f"/admin/exams/{exam_id}/end",
+            headers=_auth_header(admin_token),
+        )
+        assert end_response.status_code == 200
+
+        start_response = client.post(
+            "/attempts/start",
+            headers=_auth_header(student_token),
+            json={"exam_code": exam_code},
+        )
+        assert start_response.status_code == 400
+        assert start_response.json()["detail"] == "This exam has already ended."
+
+        exam_response = client.get(
+            f"/student/exams/{exam_code}",
+            headers=_auth_header(student_token),
+        )
+        assert exam_response.status_code == 400
+        assert exam_response.json()["detail"] == "This exam has already ended."
+    finally:
+        client.delete(f"/exams/{exam_id}", headers=_auth_header(admin_token))

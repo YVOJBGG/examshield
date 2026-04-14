@@ -44,3 +44,24 @@ def test_admin_ping_allows_admin_and_blocks_student(client: TestClient, ensure_a
 
     student_response = client.get("/admin/ping", headers={"Authorization": f"Bearer {student_token}"})
     assert student_response.status_code == 403
+
+
+@pytest.mark.parametrize(
+    ("username", "password"),
+    [
+        ("admin", "wrong-password"),
+        ("unknown-user", "student123"),
+    ],
+)
+def test_login_rejects_invalid_credentials(
+    client: TestClient, ensure_auth_users: None, username: str, password: str
+) -> None:
+    response = client.post("/auth/login", json={"username": username, "password": password})
+
+    assert response.status_code == 401
+
+
+def test_auth_me_requires_bearer_token(client: TestClient) -> None:
+    response = client.get("/auth/me")
+
+    assert response.status_code == 401
