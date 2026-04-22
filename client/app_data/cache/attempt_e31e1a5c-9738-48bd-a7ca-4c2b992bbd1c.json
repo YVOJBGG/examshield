@@ -1,0 +1,21 @@
+{
+  "attempt_id": "e31e1a5c-9738-48bd-a7ca-4c2b992bbd1c",
+  "exam_id": "c5c1944f-ae15-46d3-bb8a-4c0166023032",
+  "user_key": "student2",
+  "answers": {
+    "223b0f58-d2ba-4350-80f3-e23a7d650d9a": {
+      "answer_text": "The OSI model has 7 layers and is a conceptual framework, while the TCP/IP model has 4 layers and is used in real-world networking.\nTCP/IP combines some OSI layers and focuses on practical implementation.",
+      "selected_option_ids": []
+    },
+    "361b0514-ed52-4d88-81f5-ffa1b2192f8a": {
+      "answer_text": "UDP is used in real-time applications like video streaming or online gaming.\nIt is preferred because low latency is more important than reliabilty.   ",
+      "selected_option_ids": []
+    },
+    "602828a9-b83d-4c3f-9ecf-9a8dd6afba82": {
+      "answer_text": "They both send similar data.",
+      "selected_option_ids": []
+    }
+  },
+  "last_local_save": "2026-04-16T21:51:58.495374+00:00",
+  "dirty": true
+}

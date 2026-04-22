@@ -1,168 +1,104 @@
 @startuml
-left to right direction
-actor Student
-actor Administrator as Admin
+hide methods
+hide stereotypes
+skinparam shadowing false
+skinparam linetype ortho
 
-rectangle "ExamShield" {
-  (Login) as UC1
-  (Take Exam) as UC2
-  (Auto-Save Answers) as UC3
-  (Submit Exam) as UC4
-  (Lockdown Environment) as UC5
-  (Capture Screenshots) as UC6
-  (Detect Prohibited Apps/Actions) as UC7
-  (Send Violation Alert) as UC8
 
-  (Create/Edit Exam) as UC9
-  (Start/Stop Session) as UC10
-  (Live Dashboard Monitoring) as UC11
-  (View Alerts) as UC12
-  (Review Reports & Logs) as UC13
-  (Browse Screenshot Gallery) as UC14
+entity "User" as User {
+  * id : UUID
+  --
+  username : String <<unique>>
+  password_hash : String
+  role : String
+  created_at : DateTime
 }
 
-Student -- UC1
-Student -- UC2
-Student -- UC4
-
-UC2 .> UC3 : <<include>>
-UC2 .> UC5 : <<include>>
-UC5 .> UC6 : <<include>>
-UC5 .> UC7 : <<include>>
-UC7 .> UC8 : <<include>>
-
-Admin -- UC9
-Admin -- UC10
-Admin -- UC11
-Admin -- UC12
-Admin -- UC13
-Admin -- UC14
-
-UC11 .> UC12 : <<include>>
-UC13 .> UC14 : <<include>>
-@enduml
-
-@startuml
-skinparam componentStyle rectangle
-
-component "Student Desktop Client\n(Python + PyQt)\nWindows 10/11" as Client
-component "Admin Web Portal\n(React SPA)" as Admin
-component "Backend Server\n(FastAPI)" as Server
-database "PostgreSQL" as DB
-component "File Storage\n(Screenshots)" as Storage
-
-Client --> Server : HTTPS REST\n(auth, quiz, submit)
-Client --> Server : WSS WebSocket\n(alerts, status)
-Admin --> Server : HTTPS REST\n(manage, reports)
-Admin --> Server : WSS WebSocket\nlive monitoring
-
-Server --> DB : SQL (users, exams,\nanswers, logs)
-Server --> Storage : Store/Retrieve\nscreenshots
-
-@enduml
-
-
-@startuml
-node "Student PC\nWindows 10/11" as StudentPC {
-  artifact "ExamShield Client\n(Python/PyQt)" as Client
+entity "Exam" as Exam {
+  * id : UUID
+  --
+  exam_code : String(6) <<unique>>
+  title : String <<unique>>
+  exam_type : String
+  instructions : Text
+  time_limit_minutes : Integer
+  is_available : Boolean
+  is_ended : Boolean
+  ended_at : DateTime
+  created_at : DateTime
 }
 
-node "Instructor PC" as AdminPC {
-  artifact "Browser\n(Admin Portal)" as Browser
+entity "Question" as Question {
+  * id : UUID
+  --
+  exam_id : UUID <<FK>>
+  text : String
+  points : Float
+  order_index : Integer
+  created_at : DateTime
 }
 
-node "Server Host\nLinux/Cloud" as Host {
-  artifact "FastAPI Backend" as Backend
-  database "PostgreSQL" as DB
-  artifact "Screenshot Storage" as Store
+entity "QuestionOption" as QuestionOption {
+  * id : UUID
+  --
+  question_id : UUID <<FK>>
+  option_text : String
+  is_correct : Boolean
+  order_index : Integer
 }
 
-Client --> Backend : HTTPS + WSS
-Browser --> Backend : HTTPS + WSS
-Backend --> DB : SQL
-Backend --> Store : File/Object Storage
-@enduml
-
-
-@startuml
-class ExamClientApp {
-  -auth: AuthManager
-  -lockdown: LockdownManager
-  -quiz: QuizManager
-  -monitor: MonitoringCoordinator
-  +start()
-  +shutdown()
+entity "Attempt" as Attempt {
+  * id : UUID
+  --
+  user_id : UUID <<FK>>
+  exam_id : UUID <<FK>>
+  graded_by_user_id : UUID <<FK, nullable>>
+  started_at : DateTime
+  submitted_at : DateTime
+  status : String
+  score : Float
+  graded_at : DateTime
 }
 
-class AuthManager {
-  +login(username, password)
-  +logout()
-  +getToken()
+entity "Answer" as Answer {
+  * id : UUID
+  --
+  attempt_id : UUID <<FK>>
+  question_id : UUID <<FK>>
+  answer_text : Text
+  selected_option_ids : JSON
+  saved_at : DateTime
 }
 
-class NetworkClient {
-  +post(path, payload)
-  +get(path)
-  +connectWebSocket()
-  +sendStatus(status)
-  +sendAlert(alert)
-  +uploadScreenshot(image)
+entity "Violation" as Violation {
+  * id : UUID
+  --
+  attempt_id : UUID <<FK>>
+  type : String
+  details : Text
+  created_at : DateTime
 }
 
-class LockdownManager {
-  +enable()
-  +disable()
-  +blockKeys()
-  +forceFullscreen()
+entity "Screenshot" as Screenshot {
+  * id : UUID
+  --
+  attempt_id : UUID <<FK>>
+  file_path : String
+  captured_at : DateTime
 }
 
-class MonitoringCoordinator {
-  -screens: ScreenshotService
-  -proc: ProcessMonitor
-  -events: EventLogger
-  +start()
-  +stop()
-}
+Exam ||--o{ Question
+Question ||--o{ QuestionOption
 
-class ScreenshotService {
-  +scheduleRandom(minSec, maxSec)
-  +capture()
-  +upload()
-}
+User ||--o{ Attempt : creates
+Exam ||--o{ Attempt : has
+User |o--o{ Attempt : grades
 
-class ProcessMonitor {
-  +scanProhibited()
-  +terminate(name)
-  +flagViolation(name)
-}
+Attempt ||--o{ Answer
+Question ||--o{ Answer
 
-class QuizManager {
-  +fetchQuiz(examId)
-  +saveAnswer(qId, answer)
-  +autosave()
-  +submit()
-}
+Attempt ||--o{ Violation
+Attempt ||--o{ Screenshot
 
-class LocalCache {
-  +storePending(payload)
-  +flushOnReconnect()
-}
-
-class EventLogger {
-  +log(type, details)
-}
-
-ExamClientApp --> AuthManager
-ExamClientApp --> LockdownManager
-ExamClientApp --> QuizManager
-ExamClientApp --> MonitoringCoordinator
-
-AuthManager --> NetworkClient
-QuizManager --> NetworkClient
-MonitoringCoordinator --> NetworkClient
-MonitoringCoordinator --> LocalCache
-MonitoringCoordinator --> EventLogger
-ScreenshotService --> NetworkClient
-ProcessMonitor --> NetworkClient
 
 @enduml

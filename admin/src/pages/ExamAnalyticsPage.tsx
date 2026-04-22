@@ -123,7 +123,7 @@ function buildInsights(analytics: ExamAnalyticsResponse): InsightItem[] {
 
   if (analytics.exam.hardest_question) {
     items.push({
-      label: "Backend hardest-question proxy",
+      label: "Hardest-question",
       value: analytics.exam.hardest_question.question_text,
       note: `${humanizeMetric(analytics.exam.hardest_question.metric)}: ${formatNumber(analytics.exam.hardest_question.value)}`,
     });
@@ -200,10 +200,10 @@ function ExamAnalyticsPage({ onAuthError }: Props) {
         actions={
           exam ? (
             <>
-              <Link to={`/exams/${exam.id}`} className="button-link secondary-button">
+              <Link to={`/exams/${exam.id}`} className="button-link">
                 Open Builder
               </Link>
-              <Link to={`/exams/${exam.id}/submissions`} className="button-link secondary-button">
+              <Link to={`/exams/${exam.id}/submissions`} className="button-link">
                 View Submissions
               </Link>
             </>

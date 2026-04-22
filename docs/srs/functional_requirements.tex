@@ -1,0 +1,27 @@
+\section{Functional Requirements}
+
+The functional requirements of ExamShield define the core services that the system must provide in order to support secure online examinations. ExamShield is designed as an integrated platform composed of a student client, an administrative web interface, and a backend service responsible for data persistence and coordination. From a functional perspective, the system must not only enable the delivery and completion of exams, but also support supervisory activities that help preserve assessment integrity. The following requirements describe the expected behaviour of the system at the level of user-visible functionality and system response.
+
+\begin{enumerate}
+    \item \textbf{User authentication and role separation.} The system shall authenticate registered users before granting access to protected resources. It shall distinguish at minimum between student and administrator roles, and it shall ensure that each role can access only the functions relevant to its responsibilities.
+
+    \item \textbf{Exam administration.} The system shall allow administrators to create, modify, publish, and manage examinations. This includes defining exam metadata, maintaining question sets, and controlling whether a given examination is available for student access.
+
+    \item \textbf{Student exam retrieval and attempt initiation.} The system shall allow an authenticated student to retrieve the examination assigned to them and to initiate an exam attempt. Once an attempt has started, the system shall create and maintain a distinct record of that attempt for subsequent tracking and evaluation.
+
+    \item \textbf{Answer capture and persistence.} The system shall allow students to enter and modify answers during an active attempt. It shall support periodic or event-driven autosaving so that submitted responses are preserved even if the session is interrupted before final submission.
+
+    \item \textbf{Exam submission.} The system shall allow a student to submit an active attempt explicitly. Upon submission, the system shall store the final state of the attempt, prevent unintended continuation of the session, and make the completed attempt available for later review by authorized personnel.
+
+    \item \textbf{Monitoring of active attempts.} The system shall collect status information related to ongoing student exam sessions and provide administrators with a live overview of active attempts. This monitoring view shall present the state of each attempt in a form that supports real-time supervision.
+
+    \item \textbf{Violation detection and incident recording.} The system shall detect or receive indicators of suspicious behaviour during an exam attempt, such as loss of application focus or other disallowed actions defined by the examination policy. Each such event shall be recorded as a violation together with the associated attempt and a timestamp.
+
+    \item \textbf{Administrative alerting.} When suspicious behaviour is detected, the system shall notify administrators without requiring them to manually refresh the monitoring interface. The notification mechanism shall make it possible to identify the affected student attempt quickly and inspect its related incident history.
+
+    \item \textbf{Evidence association.} The system shall support linking monitoring evidence to an exam attempt, including violation records and captured screenshots or similar artifacts when such collection is enabled. This requirement is intended to provide a traceable basis for later academic review.
+
+    \item \textbf{Attempt history and post-exam review.} The system shall preserve completed attempts and their associated monitoring records so that authorized administrators can review student activity after the examination has ended. This review capability shall support academic decision-making, incident investigation, and later reporting.
+\end{enumerate}
+
+Taken together, these requirements define ExamShield as more than a conventional online testing application. The system must simultaneously support exam delivery, continuous answer preservation, supervisory awareness, and evidence-oriented incident handling. This combination of functions is essential because the educational value of an online examination depends not only on successful submission of answers, but also on the credibility and traceability of the examination process itself.
