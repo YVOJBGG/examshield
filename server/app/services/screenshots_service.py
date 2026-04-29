@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
-from app.models import Attempt, Screenshot
+from app.models import Attempt, Exam, Screenshot
 from app.schemas.screenshot import ScreenshotListItem, ScreenshotOut
 
 ALLOWED_SCREENSHOT_EXTENSIONS = {".png", ".jpg", ".jpeg"}
@@ -31,15 +31,24 @@ def _get_attempt_for_student(db: Session, attempt_id: uuid.UUID, user_id: uuid.U
     return attempt
 
 
-def _get_attempt_for_admin(db: Session, attempt_id: uuid.UUID) -> Attempt:
-    attempt = db.scalar(select(Attempt).where(Attempt.id == attempt_id))
+def _get_attempt_for_admin(db: Session, attempt_id: uuid.UUID, admin_user_id: uuid.UUID) -> Attempt:
+    attempt = db.scalar(
+        select(Attempt)
+        .join(Attempt.exam)
+        .where(Attempt.id == attempt_id, Exam.created_by_user_id == admin_user_id)
+    )
     if attempt is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attempt not found")
     return attempt
 
 
-def _get_screenshot_for_admin(db: Session, screenshot_id: uuid.UUID) -> Screenshot:
-    screenshot = db.scalar(select(Screenshot).where(Screenshot.id == screenshot_id))
+def _get_screenshot_for_admin(db: Session, screenshot_id: uuid.UUID, admin_user_id: uuid.UUID) -> Screenshot:
+    screenshot = db.scalar(
+        select(Screenshot)
+        .join(Screenshot.attempt)
+        .join(Attempt.exam)
+        .where(Screenshot.id == screenshot_id, Exam.created_by_user_id == admin_user_id)
+    )
     if screenshot is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Screenshot not found")
     return screenshot
@@ -143,8 +152,12 @@ def create_screenshot(
     return _serialize_screenshot(screenshot)
 
 
-def list_attempt_screenshots(db: Session, attempt_id: uuid.UUID) -> list[ScreenshotListItem]:
-    _get_attempt_for_admin(db, attempt_id)
+def list_attempt_screenshots(
+    db: Session,
+    attempt_id: uuid.UUID,
+    admin_user_id: uuid.UUID,
+) -> list[ScreenshotListItem]:
+    _get_attempt_for_admin(db, attempt_id, admin_user_id)
     screenshots = list(
         db.scalars(
             select(Screenshot)
@@ -155,8 +168,8 @@ def list_attempt_screenshots(db: Session, attempt_id: uuid.UUID) -> list[Screens
     return [ScreenshotListItem(**_serialize_screenshot(item).model_dump()) for item in screenshots]
 
 
-def get_screenshot_file_path(db: Session, screenshot_id: uuid.UUID) -> tuple[Path, str]:
-    screenshot = _get_screenshot_for_admin(db, screenshot_id)
+def get_screenshot_file_path(db: Session, screenshot_id: uuid.UUID, admin_user_id: uuid.UUID) -> tuple[Path, str]:
+    screenshot = _get_screenshot_for_admin(db, screenshot_id, admin_user_id)
     file_path = _resolve_screenshot_path(screenshot.file_path)
     if not file_path.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Screenshot file not found")

@@ -24,7 +24,15 @@ QUESTION_TIME_METHOD = "approx_saved_at_deltas"
 QUESTION_ALERT_METHOD = "not_available"
 
 
-def _get_exam_with_related_data(db: Session, exam_id: uuid.UUID) -> Exam:
+def _get_exam_with_related_data(
+    db: Session,
+    exam_id: uuid.UUID,
+    admin_user_id: uuid.UUID | None = None,
+) -> Exam:
+    filters = [Exam.id == exam_id]
+    if admin_user_id is not None:
+        filters.append(Exam.created_by_user_id == admin_user_id)
+
     exam = db.scalar(
         select(Exam)
         .options(
@@ -34,15 +42,15 @@ def _get_exam_with_related_data(db: Session, exam_id: uuid.UUID) -> Exam:
             selectinload(Exam.attempts).selectinload(Attempt.violations),
             selectinload(Exam.attempts).selectinload(Attempt.screenshots),
         )
-        .where(Exam.id == exam_id)
+        .where(*filters)
     )
     if exam is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exam not found")
     return exam
 
 
-def end_exam(db: Session, exam_id: uuid.UUID) -> ExamEndResponse:
-    exam = _get_exam_with_related_data(db, exam_id)
+def end_exam(db: Session, exam_id: uuid.UUID, admin_user_id: uuid.UUID) -> ExamEndResponse:
+    exam = _get_exam_with_related_data(db, exam_id, admin_user_id)
     ended_at = datetime.now(timezone.utc)
     updated_attempts = 0
     already_completed_attempts = 0
@@ -152,8 +160,8 @@ def _build_hardest_question_stat(
     )
 
 
-def get_exam_analytics(db: Session, exam_id: uuid.UUID) -> ExamAnalyticsResponse:
-    exam = _get_exam_with_related_data(db, exam_id)
+def get_exam_analytics(db: Session, exam_id: uuid.UUID, admin_user_id: uuid.UUID) -> ExamAnalyticsResponse:
+    exam = _get_exam_with_related_data(db, exam_id, admin_user_id)
     questions = sorted(exam.questions, key=lambda item: (item.order_index, item.created_at, str(item.id)))
     attempts = sorted(exam.attempts, key=lambda item: (item.started_at, str(item.id)))
     total_attempts = len(attempts)

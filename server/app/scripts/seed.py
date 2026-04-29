@@ -7,9 +7,12 @@ from app.models import Exam, Question, User
 
 USERS = [
     {"username": "admin", "password": "admin123", "role": "admin"},
+    {"username": "admin1", "password": "admin123", "role": "admin"},
     {"username": "student1", "password": "student123", "role": "student"},
     {"username": "student2", "password": "student123", "role": "student"},
     {"username": "student3", "password": "student123", "role": "student"},
+    {"username": "student4", "password": "student123", "role": "student"},
+    {"username": "student5", "password": "student123", "role": "student"},
 ]
 
 
@@ -27,25 +30,6 @@ def seed_users(session) -> None:
                 role=u["role"],
             )
         )
-
-"""
-def seed_exam_with_questions(session):
-    exam = session.scalar(select(Exam).where(Exam.exam_code == SAMPLE_EXAM["exam_code"]))
-    if not exam:
-        exam = Exam(**SAMPLE_EXAM)
-        session.add(exam)
-        session.flush()
-
-    existing_questions = session.scalars(select(Question).where(Question.exam_id == exam.id)).all()
-    existing_texts = {q.text for q in existing_questions}
-
-    for qtext in QUESTIONS:
-        if qtext in existing_texts:
-            continue
-        session.add(Question(exam_id=exam.id, text=qtext))
-
-    return exam.id
-"""
 
 def main() -> None:
     with SessionLocal() as session:

@@ -24,14 +24,14 @@ def _grading_state(attempt: Attempt) -> str:
     return "manually_graded"
 
 
-def _get_exam(db: Session, exam_id: uuid.UUID) -> Exam:
-    exam = db.scalar(select(Exam).where(Exam.id == exam_id))
+def _get_exam(db: Session, exam_id: uuid.UUID, admin_user_id: uuid.UUID) -> Exam:
+    exam = db.scalar(select(Exam).where(Exam.id == exam_id, Exam.created_by_user_id == admin_user_id))
     if exam is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exam not found")
     return exam
 
 
-def _get_attempt(db: Session, attempt_id: uuid.UUID) -> Attempt:
+def _get_attempt(db: Session, attempt_id: uuid.UUID, admin_user_id: uuid.UUID) -> Attempt:
     attempt = db.scalar(
         select(Attempt)
         .options(
@@ -39,15 +39,20 @@ def _get_attempt(db: Session, attempt_id: uuid.UUID) -> Attempt:
             selectinload(Attempt.exam),
             selectinload(Attempt.answers).selectinload(Answer.question).selectinload(Question.options),
         )
-        .where(Attempt.id == attempt_id)
+        .join(Attempt.exam)
+        .where(Attempt.id == attempt_id, Exam.created_by_user_id == admin_user_id)
     )
     if attempt is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attempt not found")
     return attempt
 
 
-def list_submitted_attempts_for_exam(db: Session, exam_id: uuid.UUID) -> list[AttemptReviewListItem]:
-    _get_exam(db, exam_id)
+def list_submitted_attempts_for_exam(
+    db: Session,
+    exam_id: uuid.UUID,
+    admin_user_id: uuid.UUID,
+) -> list[AttemptReviewListItem]:
+    _get_exam(db, exam_id, admin_user_id)
     attempts = list(
         db.scalars(
             select(Attempt)
@@ -70,8 +75,12 @@ def list_submitted_attempts_for_exam(db: Session, exam_id: uuid.UUID) -> list[At
     ]
 
 
-def get_attempt_review_detail(db: Session, attempt_id: uuid.UUID) -> AttemptReviewDetail:
-    attempt = _get_attempt(db, attempt_id)
+def get_attempt_review_detail(
+    db: Session,
+    attempt_id: uuid.UUID,
+    admin_user_id: uuid.UUID,
+) -> AttemptReviewDetail:
+    attempt = _get_attempt(db, attempt_id, admin_user_id)
     if attempt.status not in {"submitted", "force_submitted"}:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -143,7 +152,7 @@ def get_attempt_review_detail(db: Session, attempt_id: uuid.UUID) -> AttemptRevi
 
 
 def update_attempt_score(db: Session, attempt_id: uuid.UUID, score: float, admin_user_id: uuid.UUID) -> Attempt:
-    attempt = _get_attempt(db, attempt_id)
+    attempt = _get_attempt(db, attempt_id, admin_user_id)
     if attempt.status not in {"submitted", "force_submitted"}:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -104,8 +104,8 @@ def _sync_question_options(question: Question, exam: Exam, options: list[Questio
         )
 
 
-def list_questions(db: Session, exam_id: uuid.UUID) -> list[Question]:
-    get_exam(db, exam_id)
+def list_questions(db: Session, exam_id: uuid.UUID, admin_user_id: uuid.UUID | None = None) -> list[Question]:
+    get_exam(db, exam_id, admin_user_id)
     stmt = (
         select(Question)
         .options(selectinload(Question.options))
@@ -115,8 +115,13 @@ def list_questions(db: Session, exam_id: uuid.UUID) -> list[Question]:
     return list(db.scalars(stmt).all())
 
 
-def create_question(db: Session, exam_id: uuid.UUID, payload: QuestionCreate) -> Question:
-    exam = get_exam(db, exam_id)
+def create_question(
+    db: Session,
+    exam_id: uuid.UUID,
+    payload: QuestionCreate,
+    admin_user_id: uuid.UUID | None = None,
+) -> Question:
+    exam = get_exam(db, exam_id, admin_user_id)
 
     question = Question(
         exam_id=exam_id,
@@ -131,11 +136,16 @@ def create_question(db: Session, exam_id: uuid.UUID, payload: QuestionCreate) ->
     db.add(question)
     db.commit()
     db.refresh(question)
-    return get_question(db, exam_id, question.id)
+    return get_question(db, exam_id, question.id, admin_user_id)
 
 
-def get_question(db: Session, exam_id: uuid.UUID, question_id: uuid.UUID) -> Question:
-    get_exam(db, exam_id)
+def get_question(
+    db: Session,
+    exam_id: uuid.UUID,
+    question_id: uuid.UUID,
+    admin_user_id: uuid.UUID | None = None,
+) -> Question:
+    get_exam(db, exam_id, admin_user_id)
     question = db.scalar(
         select(Question)
         .options(selectinload(Question.options))
@@ -147,10 +157,14 @@ def get_question(db: Session, exam_id: uuid.UUID, question_id: uuid.UUID) -> Que
 
 
 def update_question(
-    db: Session, exam_id: uuid.UUID, question_id: uuid.UUID, payload: QuestionUpdate
+    db: Session,
+    exam_id: uuid.UUID,
+    question_id: uuid.UUID,
+    payload: QuestionUpdate,
+    admin_user_id: uuid.UUID | None = None,
 ) -> Question:
-    exam = get_exam(db, exam_id)
-    question = get_question(db, exam_id, question_id)
+    exam = get_exam(db, exam_id, admin_user_id)
+    question = get_question(db, exam_id, question_id, admin_user_id)
 
     if payload.text is not None:
         question.text = _normalize_question_text(payload.text)
@@ -163,10 +177,15 @@ def update_question(
 
     db.commit()
     db.refresh(question)
-    return get_question(db, exam_id, question_id)
+    return get_question(db, exam_id, question_id, admin_user_id)
 
 
-def delete_question(db: Session, exam_id: uuid.UUID, question_id: uuid.UUID) -> None:
-    question = get_question(db, exam_id, question_id)
+def delete_question(
+    db: Session,
+    exam_id: uuid.UUID,
+    question_id: uuid.UUID,
+    admin_user_id: uuid.UUID | None = None,
+) -> None:
+    question = get_question(db, exam_id, question_id, admin_user_id)
     db.delete(question)
     db.commit()

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Integer, String, Text, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -23,6 +23,12 @@ class Exam(Base):
     is_available: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     is_ended: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     questions = relationship(
@@ -32,3 +38,4 @@ class Exam(Base):
         order_by="Question.order_index",
     )
     attempts = relationship("Attempt", back_populates="exam", cascade="all, delete-orphan")
+    created_by = relationship("User")

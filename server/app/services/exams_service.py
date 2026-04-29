@@ -31,8 +31,14 @@ def _validate_time_limit(time_limit_minutes: int) -> None:
         )
 
 
-def list_exams(db: Session) -> list[Exam]:
-    return list(db.scalars(select(Exam).order_by(Exam.created_at.desc())).all())
+def list_exams(db: Session, admin_user_id: uuid.UUID) -> list[Exam]:
+    return list(
+        db.scalars(
+            select(Exam)
+            .where(Exam.created_by_user_id == admin_user_id)
+            .order_by(Exam.created_at.desc())
+        ).all()
+    )
 
 
 def _generate_unique_exam_code(db: Session) -> str:
@@ -43,7 +49,7 @@ def _generate_unique_exam_code(db: Session) -> str:
             return exam_code
 
 
-def create_exam(db: Session, payload: ExamCreate) -> Exam:
+def create_exam(db: Session, payload: ExamCreate, admin_user_id: uuid.UUID) -> Exam:
     _validate_time_limit(payload.time_limit_minutes)
 
     exam = Exam(
@@ -53,6 +59,7 @@ def create_exam(db: Session, payload: ExamCreate) -> Exam:
         instructions=_normalize_instructions(payload.instructions),
         time_limit_minutes=payload.time_limit_minutes,
         is_available=payload.is_available,
+        created_by_user_id=admin_user_id,
     )
     db.add(exam)
     db.commit()
@@ -60,19 +67,23 @@ def create_exam(db: Session, payload: ExamCreate) -> Exam:
     return exam
 
 
-def get_exam(db: Session, exam_id: uuid.UUID) -> Exam:
+def get_exam(db: Session, exam_id: uuid.UUID, admin_user_id: uuid.UUID | None = None) -> Exam:
+    filters = [Exam.id == exam_id]
+    if admin_user_id is not None:
+        filters.append(Exam.created_by_user_id == admin_user_id)
+
     exam = db.scalar(
         select(Exam)
         .options(selectinload(Exam.questions).selectinload(Question.options))
-        .where(Exam.id == exam_id)
+        .where(*filters)
     )
     if exam is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exam not found")
     return exam
 
 
-def update_exam(db: Session, exam_id: uuid.UUID, payload: ExamUpdate) -> Exam:
-    exam = get_exam(db, exam_id)
+def update_exam(db: Session, exam_id: uuid.UUID, payload: ExamUpdate, admin_user_id: uuid.UUID) -> Exam:
+    exam = get_exam(db, exam_id, admin_user_id)
 
     if payload.time_limit_minutes is not None:
         _validate_time_limit(payload.time_limit_minutes)
@@ -95,10 +106,10 @@ def update_exam(db: Session, exam_id: uuid.UUID, payload: ExamUpdate) -> Exam:
 
     db.commit()
     db.refresh(exam)
-    return get_exam(db, exam_id)
+    return get_exam(db, exam_id, admin_user_id)
 
 
-def delete_exam(db: Session, exam_id: uuid.UUID) -> None:
-    exam = get_exam(db, exam_id)
+def delete_exam(db: Session, exam_id: uuid.UUID, admin_user_id: uuid.UUID) -> None:
+    exam = get_exam(db, exam_id, admin_user_id)
     db.delete(exam)
     db.commit()

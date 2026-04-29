@@ -36,16 +36,16 @@ def upload_screenshot(
 def get_attempt_screenshots(
     attempt_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ) -> list[ScreenshotListItem]:
-    return list_attempt_screenshots(db, attempt_id)
+    return list_attempt_screenshots(db, attempt_id, current_user.id)
 
 
 @router.get("/{screenshot_id}/file")
 def get_screenshot_file(
     screenshot_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ) -> FileResponse:
-    file_path, media_type = get_screenshot_file_path(db, screenshot_id)
+    file_path, media_type = get_screenshot_file_path(db, screenshot_id, current_user.id)
     return FileResponse(path=file_path, media_type=media_type, filename=file_path.name)

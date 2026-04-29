@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import Attempt, Violation
+from app.models import Attempt, Exam, Violation
 from app.schemas.monitoring import ViolationBroadcastOut
 
 
@@ -24,8 +24,12 @@ def _get_attempt_for_student(db: Session, attempt_id: uuid.UUID, user_id: uuid.U
     return attempt
 
 
-def _get_attempt_for_admin(db: Session, attempt_id: uuid.UUID) -> Attempt:
-    attempt = db.scalar(select(Attempt).where(Attempt.id == attempt_id))
+def _get_attempt_for_admin(db: Session, attempt_id: uuid.UUID, admin_user_id: uuid.UUID) -> Attempt:
+    attempt = db.scalar(
+        select(Attempt)
+        .join(Attempt.exam)
+        .where(Attempt.id == attempt_id, Exam.created_by_user_id == admin_user_id)
+    )
     if attempt is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attempt not found")
     return attempt
@@ -68,8 +72,8 @@ def create_violation(
     return violation, broadcast_payload
 
 
-def list_attempt_violations(db: Session, attempt_id: uuid.UUID) -> list[Violation]:
-    _get_attempt_for_admin(db, attempt_id)
+def list_attempt_violations(db: Session, attempt_id: uuid.UUID, admin_user_id: uuid.UUID) -> list[Violation]:
+    _get_attempt_for_admin(db, attempt_id, admin_user_id)
     return list(
         db.scalars(
             select(Violation)

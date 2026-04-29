@@ -34,6 +34,6 @@ async def post_violation(
 def get_attempt_violations(
     attempt_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ) -> list[ViolationListItem]:
-    return list_attempt_violations(db, attempt_id)
+    return list_attempt_violations(db, attempt_id, current_user.id)

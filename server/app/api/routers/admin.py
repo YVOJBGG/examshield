@@ -27,18 +27,18 @@ def admin_ping(_: User = Depends(require_admin)) -> dict[str, str]:
 def get_exam_attempts(
     exam_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ) -> list[AttemptReviewListItem]:
-    return list_submitted_attempts_for_exam(db, exam_id)
+    return list_submitted_attempts_for_exam(db, exam_id, current_user.id)
 
 
 @router.post("/exams/{exam_id}/end", response_model=ExamEndResponse)
 def post_end_exam(
     exam_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ) -> ExamEndResponse:
-    return end_exam(db, exam_id)
+    return end_exam(db, exam_id, current_user.id)
 
 
 @router.get(
@@ -49,18 +49,18 @@ def post_end_exam(
 def get_exam_analytics_endpoint(
     exam_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ) -> ExamAnalyticsResponse:
-    return get_exam_analytics(db, exam_id)
+    return get_exam_analytics(db, exam_id, current_user.id)
 
 
 @router.get("/attempts/{attempt_id}", response_model=AttemptReviewDetail)
 def get_attempt_detail(
     attempt_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
 ) -> AttemptReviewDetail:
-    return get_attempt_review_detail(db, attempt_id)
+    return get_attempt_review_detail(db, attempt_id, current_user.id)
 
 
 @router.put("/attempts/{attempt_id}/score", response_model=AttemptScoreOut)
