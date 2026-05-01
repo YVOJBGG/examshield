@@ -2,13 +2,6 @@
 
 ExamShield is organized as a monorepo with separate backend, admin UI, client app, and documentation.
 
-## Source of Truth Documentation
-
-The canonical project reference is:
-- `docs/PROJECT_DOCUMENTATION.md`
-
-For implementation tasks, treat that document as the primary source of truth and open only files that need changes.
-
 ## Repository Structure
 
 - `server/`: FastAPI backend and automated tests.
